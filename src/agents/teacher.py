@@ -23,7 +23,7 @@ class Teacher:
         self.number_of_kids = number_of_kids
         self.tick_delay = tick_delay  # Délai entre les mouvements (en ticks)
         self.tick_count = 0  # Compteur de ticks
-        self.target_child = None  # Index de l'enfant poursuivi
+        self.targets = []  # Liste des cibles actuelles
 
     def move(self, environment, children_positions):
         """
@@ -36,28 +36,25 @@ class Teacher:
         initial_position = (self.x, self.y)
 
         # Étape 1 : Identifier tous les enfants hors de la zone de coloriage
-        out_of_zone_children = [
+        self.targets = [
             (i, pos) for i, pos in enumerate(children_positions)
             if not (environment.coloring_zone[0] <= pos[0] <= environment.coloring_zone[2] and
                     environment.coloring_zone[1] <= pos[1] <= environment.coloring_zone[3])
         ]
 
-        if not out_of_zone_children:
+        if not self.targets:
             # Tous les enfants sont dans la zone de coloriage
-            self.target_child = None
             logger.info(f"All children are in the coloring zone. Teacher stays at ({self.x}, {self.y}).")
             return
 
-        # Étape 2 : Choisir l'enfant le plus proche à poursuivre
-        if self.target_child is None or self.target_child not in [child[0] for child in out_of_zone_children]:
-            # Si pas de cible ou si la cible précédente est retournée à la zone, choisir un nouveau
-            self.target_child = min(
-                out_of_zone_children,
-                key=lambda child: abs(self.x - child[1][0]) + abs(self.y - child[1][1])
-            )[0]
+        # Étape 2 : Trouver l'enfant le plus proche parmi les cibles
+        closest_target = min(
+            self.targets,
+            key=lambda child: abs(self.x - child[1][0]) + abs(self.y - child[1][1])
+        )
 
-        # Étape 3 : Poursuivre l'enfant ciblé
-        target_x, target_y = children_positions[self.target_child]
+        # Étape 3 : Poursuivre cet enfant
+        target_x, target_y = closest_target[1]
         self.move_towards(target_x, target_y)
         logger.info(f"Teacher moved from {initial_position} to ({self.x}, {self.y}) chasing child at ({target_x}, {target_y})")
 

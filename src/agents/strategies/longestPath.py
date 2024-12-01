@@ -26,15 +26,33 @@ class LongestPath(Kid):
             return
         self.tick_count = 0  # Réinitialiser le compteur
 
-        # Si l'agent retourne à sa case initiale (avec un bonbon ou après interception)
+        # Si l'agent retourne à sa case initiale (après avoir pris un bonbon)
         if self.has_candy:
-            self.handle_candy_interactions(environment)
+            if self.path_stack:
+                self.x, self.y = self.path_stack.pop()  # Revenir en suivant le chemin inverse
+                logger.info(f"LongestPath is returning to initial position via ({self.x}, {self.y})")
+            if not self.path_stack:  # Si arrivé à la position initiale
+                self.has_candy = False
+                self.score += 1
+                logger.info(f"LongestPath delivered candy and scored! Current score: {self.score}")
             return
 
-        # Déterminer la cible actuelle
+        # Déterminer la cible actuelle (zone de bonbons)
         target_x, target_y = self.set_target(environment)
 
-        # Enregistrer la position actuelle dans la pile avant de se déplacer
+        # Si l'agent est arrivé à la zone de bonbons, tenter de récupérer un bonbon
+        if (self.x, self.y) == (target_x, target_y):
+            if not self.has_candy and environment.candy_count > 0:
+                self.has_candy = True
+                environment.candy_count -= 1
+                logger.info(f"LongestPath picked a candy at ({self.x}, {self.y}). Remaining candies: {environment.candy_count}")
+            elif not self.has_candy:
+                # Aucun bonbon disponible, retour à la zone initiale
+                logger.info(f"LongestPath found no candy and is returning to initial position.")
+                self.path_stack.append((self.x, self.y))  # Ajouter la position actuelle comme début du retour
+                return
+
+        # Enregistrer la position actuelle dans la pile avant de bouger
         if not self.has_candy:
             self.path_stack.append((self.x, self.y))
 
@@ -47,9 +65,6 @@ class LongestPath(Kid):
             self.y += 1
         elif self.y > target_y:
             self.y -= 1
-
-        # Vérifier les interactions avec les zones
-        self.handle_candy_interactions(environment)
 
         # Log des déplacements
         logger.info(f"LongestPath moved from {initial_position} to ({self.x}, {self.y}), target ({target_x}, {target_y})")

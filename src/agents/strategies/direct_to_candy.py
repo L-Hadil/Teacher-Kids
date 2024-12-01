@@ -3,26 +3,13 @@ from venv import logger
 
 class DirectToCandy(Kid):
     def __init__(self, x, y, cell_size, icon_path):
-        """
-        Initialise l'agent DirectToCandy avec une pile pour enregistrer le chemin parcouru.
-
-        Args:
-        - x (int): Position initiale en x (colonne).
-        - y (int): Position initiale en y (ligne).
-        - cell_size (int): Taille d'une cellule (en pixels).
-        - icon_path (str): Chemin vers l'icône de l'enfant.
-        """
         super().__init__(x, y, cell_size, icon_path)
 
     def move(self, environment, teacher_position):
         """
         Stratégie "directe" : Aller directement à la cible (bonbons ou coloriage).
-
-        Args:
-        - environment (Environment): L'environnement actuel.
-        - teacher_position (tuple): Position de la maîtresse (x, y).
         """
-        # Respecter le délai avant de bouger basé sur DEFAULT_TICK_DELAY
+        # Respecter le délai avant de bouger
         self.tick_count += 1
         if self.tick_count < Kid.DEFAULT_TICK_DELAY:
             return
