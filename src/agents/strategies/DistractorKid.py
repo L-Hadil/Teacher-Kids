@@ -1,114 +1,125 @@
+import math
 from src.agents.kid import Kid
 from venv import logger
-import math
 
 
 class DistractorKid(Kid):
-    DISTRACTION_RADIUS = 5  # Distance maximale pour rester en mode distraction
-    FAR_DISTANCE_THRESHOLD = 8  # Distance à laquelle chercher des bonbons si la maîtresse est trop loin
+    DISTRACTION_RADIUS = 5
+    FAR_DISTANCE_THRESHOLD = 8
 
     def __init__(self, x, y, cell_size, icon_path):
-        """
-        Initialise l'agent DistractorKid.
-
-        Args:
-        - x (int): Position initiale en x (colonne).
-        - y (int): Position initiale en y (ligne).
-        - cell_size (int): Taille d'une cellule (en pixels).
-        - icon_path (str): Chemin vers l'icône de l'enfant.
-        """
         super().__init__(x, y, cell_size, icon_path)
-        self.distracting = True  # L'état où il cherche à distraire la maîtresse
-        self.current_target = None  # Mémorise la cible actuelle
-        self.last_position = (x, y)  # Pour détecter les blocages
-        self.blocked_counter = 0  # Compteur pour détecter les blocages persistants
+        self.initial_position = (x, y)
+        self.distracting = True
+        self.current_target = None
 
     def move(self, environment, teacher_position):
-        """
-        Stratégie : attirer la maîtresse tout en récupérant des bonbons si elle est éloignée.
-
-        Args:
-        - environment (Environment): L'environnement actuel.
-        - teacher_position (tuple): Position de la maîtresse (x, y).
-        """
         self.tick_count += 1
         if self.tick_count < Kid.DEFAULT_TICK_DELAY:
             return
-        self.tick_count = 0  # Réinitialiser le compteur
+        self.tick_count = 0
 
-        # Si l'agent a un bonbon, retourner à la position initiale
+        # Si l'agent a un bonbon, il retourne à sa position initiale
         if self.has_candy:
-            if self.path_stack:
-                self.x, self.y = self.path_stack.pop()
-                logger.info(f"DistractorKid returning to initial position at ({self.x}, {self.y}).")
-
-                if not self.path_stack:  # Si arrivé à la position initiale
-                    self.has_candy = False
-                    self.score += 1
-                    logger.info(f"DistractorKid delivered candy and scored! Current score: {self.score}")
+            self.return_to_coloring_zone(environment, teacher_position)
             return
 
-        # Calculer la distance à la maîtresse
-        distance_to_teacher = math.sqrt((self.x - teacher_position[0]) ** 2 + (self.y - teacher_position[1]) ** 2)
+        # Déterminer la distance à la maîtresse
+        distance_to_teacher = math.sqrt(
+            (self.x - teacher_position[0]) ** 2 + (self.y - teacher_position[1]) ** 2
+        )
 
-        # Priorité de la distraction
+        # Définir le mode (distraction ou collecte de bonbons)
         if distance_to_teacher <= self.DISTRACTION_RADIUS:
             self.distracting = True
         elif distance_to_teacher > self.FAR_DISTANCE_THRESHOLD:
-            self.distracting = False  # Chercher des bonbons si la maîtresse est très loin
+            self.distracting = False
 
-        # Comportement basé sur l'état actuel
+        # Comportement basé sur le mode
         if self.distracting:
-            # Mode distraction : essayer de rester autour de la maîtresse
             self.current_target = self.calculate_distracting_position(environment, teacher_position)
-            logger.info(f"DistractorKid distracting around teacher at target: {self.current_target}.")
         else:
-            # Mode collecte de bonbons
-            self.current_target = self.set_target(environment)
-            logger.info(f"DistractorKid collecting candy at target: {self.current_target}.")
-
-        # Enregistrer la position actuelle dans la pile avant de bouger
-        if not self.has_candy:
-            self.path_stack.append((self.x, self.y))
+            self.current_target = self.find_candy(environment)
 
         # Déplacement vers la cible
-        self.move_towards_target(self.current_target[0], self.current_target[1])
+        if self.current_target:
+            self.move_towards_target(*self.current_target)
 
-        # Vérifier les interactions avec les zones
+        # Gérer les interactions avec les bonbons
         self.handle_candy_interactions(environment)
 
-        # Détecter un blocage
-        self.detect_and_handle_blockage()
+    def return_to_coloring_zone(self, environment, teacher_position):
+        """
+        Retourne à la position initiale tout en maximisant la distance avec la maîtresse.
+        """
+        farthest_path = self.calculate_longest_path_to_target(
+            self.initial_position, teacher_position, environment
+        )
+        if farthest_path:
+            next_position = farthest_path.pop(0)
+            self.x, self.y = next_position
+            logger.info(f"Returning to coloring zone at {next_position}.")
+
+        if (self.x, self.y) == self.initial_position:
+            self.has_candy = False
+            self.score += 1
+            logger.info(f"DistractorKid scored! Current score: {self.score}")
+            self.distracting = True  # Reprendre la distraction après marquer un point
+
+    def find_candy(self, environment):
+        """
+        Trouve la position d'un bonbon disponible dans la zone des bonbons.
+        """
+        for x in range(environment.candy_zone[0], environment.candy_zone[2] + 1):
+            for y in range(environment.candy_zone[1], environment.candy_zone[3] + 1):
+                if environment.is_candy_at(x, y):
+                    return (x, y)
+        return None
+
+    def calculate_longest_path_to_target(self, target, teacher_position, environment):
+        """
+        Calcule un chemin vers la cible (position initiale) tout en maximisant la distance avec la maîtresse.
+        """
+        paths = self.find_all_paths(self.x, self.y, target, environment)
+        if not paths:
+            return []
+        farthest_path = max(
+            paths, key=lambda path: self.calculate_path_distance_from_teacher(path, teacher_position)
+        )
+        return farthest_path
+
+    def calculate_path_distance_from_teacher(self, path, teacher_position):
+        """
+        Calcule la distance moyenne d'un chemin par rapport à la position de la maîtresse.
+        """
+        return sum(
+            math.sqrt((x - teacher_position[0]) ** 2 + (y - teacher_position[1]) ** 2)
+            for x, y in path
+        ) / len(path)
+
+    def find_all_paths(self, start_x, start_y, target, environment):
+        """
+        Trouve tous les chemins possibles entre deux points.
+        Utilise une recherche simple pour retourner plusieurs chemins.
+        """
+        # Implémentez une recherche en largeur ou une méthode DFS ici
+        pass
 
     def calculate_distracting_position(self, environment, teacher_position):
         """
-        Calcule une position stratégique pour attirer la maîtresse.
-
-        Args:
-        - environment (Environment): L'environnement actuel.
-        - teacher_position (tuple): Position de la maîtresse (x, y).
-
-        Returns:
-        - (int, int): Coordonnées de la position cible.
+        Calcule une position proche de la maîtresse pour la distraire.
         """
-        # Rester proche de la maîtresse mais légèrement en mouvement
         offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         for dx, dy in offsets:
             new_x = teacher_position[0] + dx
             new_y = teacher_position[1] + dy
             if 0 <= new_x < environment.width and 0 <= new_y < environment.height:
                 return (new_x, new_y)
-
-        # Fallback : rester exactement sur la maîtresse
         return teacher_position
 
     def move_towards_target(self, target_x, target_y):
         """
-        Déplace DistractorKid vers une cible donnée.
-
-        Args:
-        - target_x (int): Colonne cible.
-        - target_y (int): Ligne cible.
+        Déplace l'agent vers la cible donnée.
         """
         if self.x < target_x:
             self.x += 1
@@ -119,21 +130,3 @@ class DistractorKid(Kid):
             self.y += 1
         elif self.y > target_y:
             self.y -= 1
-
-        logger.info(f"DistractorKid moved towards ({target_x}, {target_y}) from ({self.x}, {self.y}).")
-
-    def detect_and_handle_blockage(self):
-        """
-        Détecte et gère les blocages.
-        """
-        if self.last_position == (self.x, self.y):
-            self.blocked_counter += 1
-            if self.blocked_counter > 3:  # Considérer bloqué après 3 cycles consécutifs
-                logger.warning(f"DistractorKid stuck at ({self.x}, {self.y}). Resetting to distraction mode.")
-                self.distracting = True  # Revenir en mode distraction
-                self.current_target = None  # Réinitialiser la cible
-                self.blocked_counter = 0
-        else:
-            self.blocked_counter = 0  # Réinitialiser le compteur si l'agent bouge
-
-        self.last_position = (self.x, self.y)  # Mettre à jour la dernière position

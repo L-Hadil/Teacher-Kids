@@ -7,7 +7,7 @@ if __name__ == "__main__":
 
     COLORING_ZONE = (2, 1, 4, 3)  # Zone de coloriage
     CANDY_ZONE = (17, 12, 19, 14)  # Zone des bonbons
-    CANDY_COUNT = 7  # Nombre de bonbons affichés
+    CANDY_COUNT = 25  # Nombre de bonbons affichés
 
     CANDY_ICON_PATH = "../assets/candy.png"
     TEACHER_ICON_PATH = "../assets/teacher.png"
