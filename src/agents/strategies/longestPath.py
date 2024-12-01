@@ -30,11 +30,11 @@ class LongestPath(Kid):
         if self.has_candy:
             if self.path_stack:
                 self.x, self.y = self.path_stack.pop()  # Revenir en suivant le chemin inverse
-                logger.info(f"LongestPath is returning to initial position via ({self.x}, {self.y})")
+
             if not self.path_stack:  # Si arrivé à la position initiale
                 self.has_candy = False
                 self.score += 1
-                logger.info(f"LongestPath delivered candy and scored! Current score: {self.score}")
+
             return
 
         # Déterminer la cible actuelle (zone de bonbons)
@@ -45,10 +45,10 @@ class LongestPath(Kid):
             if not self.has_candy and environment.candy_count > 0:
                 self.has_candy = True
                 environment.candy_count -= 1
-                logger.info(f"LongestPath picked a candy at ({self.x}, {self.y}). Remaining candies: {environment.candy_count}")
+
             elif not self.has_candy:
                 # Aucun bonbon disponible, retour à la zone initiale
-                logger.info(f"LongestPath found no candy and is returning to initial position.")
+
                 self.path_stack.append((self.x, self.y))  # Ajouter la position actuelle comme début du retour
                 return
 
@@ -66,5 +66,4 @@ class LongestPath(Kid):
         elif self.y > target_y:
             self.y -= 1
 
-        # Log des déplacements
-        logger.info(f"LongestPath moved from {initial_position} to ({self.x}, {self.y}), target ({target_x}, {target_y})")
+

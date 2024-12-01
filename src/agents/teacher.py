@@ -1,4 +1,4 @@
-from venv import logger
+
 import pygame
 
 
@@ -44,7 +44,7 @@ class Teacher:
 
         if not self.targets:
             # Tous les enfants sont dans la zone de coloriage
-            logger.info(f"All children are in the coloring zone. Teacher stays at ({self.x}, {self.y}).")
+
             return
 
         # Étape 2 : Trouver l'enfant le plus proche parmi les cibles
@@ -56,7 +56,7 @@ class Teacher:
         # Étape 3 : Poursuivre cet enfant
         target_x, target_y = closest_target[1]
         self.move_towards(target_x, target_y)
-        logger.info(f"Teacher moved from {initial_position} to ({self.x}, {self.y}) chasing child at ({target_x}, {target_y})")
+
 
     def move_towards(self, target_x, target_y):
         """

@@ -6,11 +6,12 @@ from src.agents.strategies.waitAndGo import WaitAndGo
 from src.agents.teacher import Teacher
 from src.agents.strategies.direct_to_candy import DirectToCandy
 from src.agents.strategies.longestPath import LongestPath
+from src.agents.strategies.DistractorKid import DistractorKid
 from src.environment import Environment
 
 
 class Game:
-    def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path, teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path):
+    def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path, teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path, child4_icon_path):
         """
         Initialise le jeu.
         """
@@ -29,10 +30,11 @@ class Game:
         self.children = [
             DirectToCandy(2, 1, cell_size, child1_icon_path),
             LongestPath(2, 2, cell_size, child2_icon_path),
-            WaitAndGo(3, 3, cell_size, child3_icon_path)
+            WaitAndGo(3, 3, cell_size, child3_icon_path),
+            DistractorKid(4, 3, cell_size, child4_icon_path)
         ]
 
-        self.teacher = Teacher(2, 3, cell_size, teacher_icon_path, number_of_kids=3, tick_delay=10)
+        self.teacher = Teacher(2, 3, cell_size, teacher_icon_path, number_of_kids=len(self.children), tick_delay=8)
 
         # Contrôle de la boucle principale
         self.running = True  # Initialisation de l'état du jeu
@@ -61,25 +63,35 @@ class Game:
             pygame.display.flip()
             self.clock.tick(30)
 
+        logger.info("Initial observation completed. Starting game...")
+
     def draw_score_area(self):
         """
         Dessine une zone en bas de la fenêtre pour afficher les scores.
         """
+        # Dessiner un fond pour la zone des scores
         pygame.draw.rect(
             self.screen,
             (220, 220, 220),  # Couleur gris clair
             (0, self.environment.height * self.environment.cell_size, self.screen_width, 100)  # Zone des scores
         )
 
-        font = pygame.font.Font(None, 30)  # Police pour le texte
+        font = pygame.font.Font(None, 25)  # Police légèrement plus petite pour éviter les chevauchements
         x_position = 10  # Position initiale en x
         y_position = self.environment.height * self.environment.cell_size + 10  # Position initiale en y
+        line_spacing = 20  # Espacement entre les lignes
 
-        for child in self.children:
-            score_text = f"{type(child).__name__} Score: {child.score}"  # Texte à afficher
+        # Affichage des scores pour chaque enfant
+        for i, child in enumerate(self.children):
+            score_text = f"{type(child).__name__} Score: {child.score}"
             text_surface = font.render(score_text, True, (0, 0, 0))  # Couleur noire pour le texte
-            self.screen.blit(text_surface, (x_position, y_position))  # Afficher le texte à l'écran
-            y_position += 30  # Décaler vers le bas pour le prochain score
+            self.screen.blit(text_surface, (x_position, y_position))
+            y_position += line_spacing  # Ajouter de l'espace entre chaque ligne
+
+        # Afficher le nombre de bonbons restants
+        candies_text = f"Candies Remaining: {self.environment.candy_count}"
+        candies_surface = font.render(candies_text, True, (0, 0, 0))  # Couleur noire pour le texte
+        self.screen.blit(candies_surface, (x_position, y_position + 10))  # Affichage après les scores des enfants
 
     def check_interception(self):
         """Vérifie si la maîtresse intercepte un enfant."""
@@ -89,15 +101,16 @@ class Game:
                     # Si intercepté avec un bonbon
                     child.has_candy = False
                     self.environment.candy_count += 1  # Remettre le bonbon dans la zone
-                    logging.info(f"Teacher caught {type(child).__name__} with a candy! Returning candy to the zone.")
+                    logger.warning(f"Teacher caught {type(child).__name__} with a candy!")
                 # Renvoyer l'enfant à sa position initiale
                 child.x, child.y = child.initial_position
                 child.path_stack.clear()  # Vider la pile pour réinitialiser le chemin
+                logger.info(f"{type(child).__name__} reset to initial position.")
 
     def determine_winner(self):
         """Détermine le gagnant en fonction des scores."""
         winner = max(self.children, key=lambda child: child.score)
-        logging.warning(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
+        logger.warning(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
         print(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
 
     def run(self):
@@ -105,7 +118,7 @@ class Game:
         # Observer l'état initial
         self.observe_initial_state()
 
-        logging.info("Starting the game: Kids and teacher begin their actions!")
+        logger.info("Starting the game: Kids and teacher begin their actions!")
 
         while self.running:
             for event in pygame.event.get():
@@ -151,7 +164,7 @@ class Game:
 
 # Configuration du logger
 logging.basicConfig(
-    level=logging.WARNING,  # Log niveau WARNING pour réduire la sortie
+    level=logging.INFO,  # Log niveau INFO pour suivre le jeu
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%H:%M:%S"
 )

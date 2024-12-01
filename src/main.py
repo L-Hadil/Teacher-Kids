@@ -14,6 +14,7 @@ if __name__ == "__main__":
     CHILD1_ICON_PATH = "../assets/DirectToCandy.png"
     CHILD2_ICON_PATH = "../assets/LongestPath.png"
     CHILD3_ICON_PATH = "../assets/WaitAndGo.png"
+    CHILD4_ICON_PATH = "../assets/DistractorKid.png"
 
     game = Game(
         GRID_WIDTH,
@@ -26,6 +27,7 @@ if __name__ == "__main__":
         TEACHER_ICON_PATH,
         CHILD1_ICON_PATH,
         CHILD2_ICON_PATH,
-        CHILD3_ICON_PATH
+        CHILD3_ICON_PATH,
+        CHILD4_ICON_PATH
     )
     game.run()

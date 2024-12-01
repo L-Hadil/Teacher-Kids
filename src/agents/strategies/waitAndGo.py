@@ -1,5 +1,5 @@
 from src.agents.kid import Kid
-from venv import logger
+
 
 class WaitAndGo(Kid):
     def move(self, environment, teacher_position, all_kids_positions):
@@ -18,16 +18,16 @@ class WaitAndGo(Kid):
         if self.has_candy:
             if self.path_stack:
                 self.x, self.y = self.path_stack.pop()
-                logger.info(f"WaitAndGo is returning to initial position via ({self.x}, {self.y})")
+
             if not self.path_stack:  # Si arrivé à la position initiale
                 self.has_candy = False
                 self.score += 1
-                logger.info(f"WaitAndGo delivered candy and scored! Current score: {self.score}")
+
             return
 
         # Attendre que la maîtresse soit loin (distance > 3)
         if abs(self.x - teacher_x) + abs(self.y - teacher_y) <= 3:
-            logger.info("WaitAndGo is waiting for the teacher to move further away.")
+
             return
 
         # Déterminer une cible détournée vers la zone de bonbons

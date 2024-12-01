@@ -1,5 +1,5 @@
 from src.agents.kid import Kid
-from venv import logger
+
 
 class DirectToCandy(Kid):
     def __init__(self, x, y, cell_size, icon_path):
@@ -21,7 +21,7 @@ class DirectToCandy(Kid):
             if not self.path_stack:  # Si arrivé à la position initiale
                 self.has_candy = False
                 self.score += 1
-                logger.info(f"DirectToCandy delivered candy and scored! Current score: {self.score}")
+
             return
 
         # Déterminer la cible actuelle
