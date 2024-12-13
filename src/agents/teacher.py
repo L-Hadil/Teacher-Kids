@@ -3,7 +3,7 @@ import pygame
 
 
 class Teacher:
-    def __init__(self, x, y, cell_size, icon_path, number_of_kids, tick_delay):
+    def __init__(self, x, y, cell_size, icon_path, number_of_kids, tick_delay,):
         """
         Initialise la maîtresse.
 
@@ -24,6 +24,7 @@ class Teacher:
         self.tick_delay = tick_delay  # Délai entre les mouvements (en ticks)
         self.tick_count = 0  # Compteur de ticks
         self.targets = []  # Liste des cibles actuelles
+        self.score = 0  # Score de la maîtresse
 
     def move(self, environment, children_positions):
         """

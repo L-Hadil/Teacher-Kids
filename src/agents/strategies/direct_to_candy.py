@@ -1,9 +1,9 @@
 from src.agents.kid import Kid
 
-
 class DirectToCandy(Kid):
     def __init__(self, x, y, cell_size, icon_path):
         super().__init__(x, y, cell_size, icon_path)
+        self.returned_to_base = False  # Indique si l'agent est déjà revenu à la base après un échec
 
     def move(self, environment, teacher_position):
         """
@@ -16,12 +16,19 @@ class DirectToCandy(Kid):
         self.tick_count = 0  # Réinitialiser le compteur
 
         # Si l'agent retourne à sa case initiale (avec un bonbon ou après interception)
-        if self.has_candy and self.path_stack:
+        if self.has_candy or self.returned_to_base and self.path_stack:
             self.x, self.y = self.path_stack.pop()  # Revenir en arrière via le chemin stocké
-            if not self.path_stack:  # Si arrivé à la position initiale
+            if not self.path_stack and self.returned_to_base:  # Si arrivé à la position initiale après échec
+                self.returned_to_base = True
+            elif not self.path_stack and self.has_candy:  # Si arrivé à la position initiale avec un bonbon
                 self.has_candy = False
                 self.score += 1
+            return
 
+        # Vérifier si la zone de bonbons est vide
+        if not self.has_candy and environment.candy_count == 0:
+            # Préparer le retour en suivant le chemin inversé
+            self.returned_to_base = True
             return
 
         # Déterminer la cible actuelle

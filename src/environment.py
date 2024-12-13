@@ -4,15 +4,6 @@ class Environment:
     def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path):
         """
         Initialise l'environnement avec des bonbons et une zone de coloriage.
-
-        Args:
-        - width (int): Nombre de colonnes (largeur de la grille).
-        - height (int): Nombre de rangées (hauteur de la grille).
-        - cell_size (int): Taille d'une cellule en pixels.
-        - candy_zone (tuple): Coordonnées (x1, y1, x2, y2) de la zone des bonbons.
-        - coloring_zone (tuple): Coordonnées (x1, y1, x2, y2) de la zone de coloriage.
-        - candy_count (int): Nombre initial de bonbons disponibles.
-        - candy_icon_path (str): Chemin vers l'icône des bonbons.
         """
         self.width = width
         self.height = height
@@ -23,6 +14,22 @@ class Environment:
         self.candy_icon = pygame.image.load(candy_icon_path)  # Charger l'icône
         self.candy_icon = pygame.transform.scale(self.candy_icon, (cell_size, cell_size))  # Redimensionner
         self.agents_positions = []  # Liste des positions des agents dans la zone de coloriage
+
+    def is_candy_at(self, x, y):
+        """
+        Vérifie si un bonbon est présent à une position donnée.
+
+        Args:
+        - x (int): Position X.
+        - y (int): Position Y.
+
+        Returns:
+        - bool: True si un bonbon est présent, False sinon.
+        """
+        return (self.candy_zone[0] <= x <= self.candy_zone[2] and
+                self.candy_zone[1] <= y <= self.candy_zone[3] and
+                self.candy_count > 0)
+
 
     def is_in_coloring_zone(self, x, y):
         """

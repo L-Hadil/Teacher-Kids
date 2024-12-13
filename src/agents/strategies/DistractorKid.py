@@ -1,6 +1,6 @@
 import math
 from src.agents.kid import Kid
-from venv import logger
+
 
 
 class DistractorKid(Kid):
@@ -12,6 +12,7 @@ class DistractorKid(Kid):
         self.initial_position = (x, y)
         self.distracting = True
         self.current_target = None
+        self.returned_to_base = False  # Indique si l'agent est déjà revenu à la base après un échec
 
     def move(self, environment, teacher_position):
         self.tick_count += 1
@@ -23,6 +24,10 @@ class DistractorKid(Kid):
         if self.has_candy:
             self.return_to_coloring_zone(environment, teacher_position)
             return
+
+        # Si l'agent est déjà revenu à la base après avoir trouvé la zone de bonbons vide
+        if self.returned_to_base:
+            return  # Rester dans la zone de coloriage
 
         # Déterminer la distance à la maîtresse
         distance_to_teacher = math.sqrt(
@@ -41,6 +46,11 @@ class DistractorKid(Kid):
         else:
             self.current_target = self.find_candy(environment)
 
+        # Si la zone de bonbons est vide et il n'y a pas de cible
+        if not self.has_candy and not self.current_target and environment.candy_count == 0:
+            self.return_to_coloring_zone(environment, teacher_position, back_to_base=True)
+            return
+
         # Déplacement vers la cible
         if self.current_target:
             self.move_towards_target(*self.current_target)
@@ -48,22 +58,30 @@ class DistractorKid(Kid):
         # Gérer les interactions avec les bonbons
         self.handle_candy_interactions(environment)
 
-    def return_to_coloring_zone(self, environment, teacher_position):
+    def return_to_coloring_zone(self, environment, teacher_position, back_to_base=False):
         """
-        Retourne à la position initiale tout en maximisant la distance avec la maîtresse.
+        Retourne à la position initiale tout en maximisant la distance avec la maîtresse
+        ou revient progressivement après avoir trouvé la zone de bonbons vide.
         """
+        if back_to_base:
+            if self.path_stack:
+                self.x, self.y = self.path_stack.pop()
+                if not self.path_stack:  # Une fois revenu à la position initiale
+                    self.returned_to_base = True
+            return
+
         farthest_path = self.calculate_longest_path_to_target(
             self.initial_position, teacher_position, environment
         )
         if farthest_path:
             next_position = farthest_path.pop(0)
             self.x, self.y = next_position
-            logger.info(f"Returning to coloring zone at {next_position}.")
+
 
         if (self.x, self.y) == self.initial_position:
             self.has_candy = False
             self.score += 1
-            logger.info(f"DistractorKid scored! Current score: {self.score}")
+
             self.distracting = True  # Reprendre la distraction après marquer un point
 
     def find_candy(self, environment):

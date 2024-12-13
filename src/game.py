@@ -11,20 +11,23 @@ from src.environment import Environment
 
 
 class Game:
-    def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path, teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path, child4_icon_path):
+    def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path, teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path, child4_icon_path,game_duration):
         """
         Initialise le jeu.
         """
         pygame.init()
 
         self.screen_width = width * cell_size
-        self.screen_height = height * cell_size + 100  # +100 pour la zone des scores
+        self.screen_height = height * cell_size + 200  # +100 pour la zone des scores
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Candy Game Environment")
         self.clock = pygame.time.Clock()
 
         # Initialiser l'environnement
         self.environment = Environment(width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path)
+        self.game_duration = game_duration  # Durée totale en secondes
+        self.start_time = None  # Temps de début
+        self.screen_height = height * cell_size + 800  # Hauteur totale ajustée pour la grande zone
 
         # Initialiser les enfants et la maîtresse
         self.children = [
@@ -38,6 +41,8 @@ class Game:
 
         # Contrôle de la boucle principale
         self.running = True  # Initialisation de l'état du jeu
+
+
 
     def observe_initial_state(self, observation_time=3):
         """
@@ -67,31 +72,55 @@ class Game:
 
     def draw_score_area(self):
         """
-        Dessine une zone en bas de la fenêtre pour afficher les scores.
+        Dessine une zone beaucoup plus grande en bas de la fenêtre pour afficher les scores,
+        le temps restant, et prévoir de l'espace pour des informations futures.
         """
-        # Dessiner un fond pour la zone des scores
+        # Hauteur très grande de la zone des scores : 800 pixels
+        score_area_height = 800
         pygame.draw.rect(
             self.screen,
             (220, 220, 220),  # Couleur gris clair
-            (0, self.environment.height * self.environment.cell_size, self.screen_width, 100)  # Zone des scores
+            (0, self.environment.height * self.environment.cell_size, self.screen_width, score_area_height)
         )
 
-        font = pygame.font.Font(None, 25)  # Police légèrement plus petite pour éviter les chevauchements
-        x_position = 10  # Position initiale en x
-        y_position = self.environment.height * self.environment.cell_size + 10  # Position initiale en y
-        line_spacing = 20  # Espacement entre les lignes
+        font = pygame.font.Font(None, 25)  # Taille de police standard
+        x_position = 10  # Position X pour les scores
+        y_position = self.environment.height * self.environment.cell_size + 10  # Position Y initiale
+        line_spacing = 30  # Espacement entre les lignes
 
-        # Affichage des scores pour chaque enfant
-        for i, child in enumerate(self.children):
+        # 1. Afficher les scores pour chaque enfant
+        for child in self.children:
             score_text = f"{type(child).__name__} Score: {child.score}"
-            text_surface = font.render(score_text, True, (0, 0, 0))  # Couleur noire pour le texte
+            text_surface = font.render(score_text, True, (0, 0, 0))  # Texte noir
             self.screen.blit(text_surface, (x_position, y_position))
-            y_position += line_spacing  # Ajouter de l'espace entre chaque ligne
+            y_position += line_spacing  # Ajouter un espacement entre les lignes
 
-        # Afficher le nombre de bonbons restants
+        # 2. Afficher le score de la maîtresse
+        teacher_score_text = f"Teacher Score: {self.teacher.score}"
+        teacher_score_surface = font.render(teacher_score_text, True, (0, 0, 255))  # Texte bleu
+        self.screen.blit(teacher_score_surface, (x_position, y_position))
+        y_position += line_spacing
+
+        # 3. Afficher le nombre de bonbons restants
         candies_text = f"Candies Remaining: {self.environment.candy_count}"
-        candies_surface = font.render(candies_text, True, (0, 0, 0))  # Couleur noire pour le texte
-        self.screen.blit(candies_surface, (x_position, y_position + 10))  # Affichage après les scores des enfants
+        candies_surface = font.render(candies_text, True, (0, 0, 0))  # Texte noir
+        self.screen.blit(candies_surface, (x_position, y_position))
+        y_position += line_spacing  # Ajouter un espacement pour le texte suivant
+
+        # 4. Calculer et afficher le temps restant à droite
+        elapsed_time = (pygame.time.get_ticks() - self.start_time) / 1000  # Temps écoulé en secondes
+        remaining_time = max(0, self.game_duration - elapsed_time)  # Éviter les valeurs négatives
+        time_text = f"Time Remaining: {int(remaining_time)}s"
+        time_surface = font.render(time_text, True, (255, 0, 0))  # Texte rouge pour le temps restant
+        time_x_position = self.screen_width - time_surface.get_width() - 10  # Aligner à droite
+        self.screen.blit(time_surface, (
+            time_x_position, self.environment.height * self.environment.cell_size + 10))  # Même hauteur que les scores
+
+    def determine_winner(self):
+        """Détermine le gagnant en fonction des scores."""
+        winner = max(self.children, key=lambda child: child.score)
+        logger.warning(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
+        print(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
 
     def check_interception(self):
         """Vérifie si la maîtresse intercepte un enfant."""
@@ -101,20 +130,17 @@ class Game:
                     # Si intercepté avec un bonbon
                     child.has_candy = False
                     self.environment.candy_count += 1  # Remettre le bonbon dans la zone
+                    self.teacher.score += 1  # Incrémenter le score de la maîtresse
                     logger.warning(f"Teacher caught {type(child).__name__} with a candy!")
                 # Renvoyer l'enfant à sa position initiale
                 child.x, child.y = child.initial_position
                 child.path_stack.clear()  # Vider la pile pour réinitialiser le chemin
-                logger.info(f"{type(child).__name__} reset to initial position.")
-
-    def determine_winner(self):
-        """Détermine le gagnant en fonction des scores."""
-        winner = max(self.children, key=lambda child: child.score)
-        logger.warning(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
-        print(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
 
     def run(self):
         """Boucle principale du jeu."""
+        # Enregistrer le temps de départ
+        self.start_time = pygame.time.get_ticks()  # Temps de départ en millisecondes
+
         # Observer l'état initial
         self.observe_initial_state()
 
@@ -125,9 +151,11 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.running = False
 
-            # Vérifier si le jeu doit s'arrêter
-            if self.environment.candy_count == 0:
-                self.determine_winner()
+            # Calculer le temps écoulé
+            elapsed_time = (pygame.time.get_ticks() - self.start_time) / 1000  # Convertir en secondes
+            if elapsed_time >= self.game_duration:
+                self.determine_winner()  # Déterminer le gagnant
+                logger.warning("Time's up! The game is over.")
                 self.running = False
                 continue
 
@@ -152,7 +180,7 @@ class Game:
             for child in self.children:
                 child.draw(self.screen)
 
-            # Afficher les scores
+            # Afficher les scores et le temps restant
             self.draw_score_area()
 
             # Rafraîchir l'écran
