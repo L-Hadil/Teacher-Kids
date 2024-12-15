@@ -5,7 +5,7 @@ if __name__ == "__main__":
     GRID_HEIGHT = 15
     CELL_SIZE = 40
 
-    GAME_DURATION = 120  # Temps limite en secondes (2 minutes)
+    GAME_DURATION = 60  # Temps limite en secondes (2 minutes)
 
     COLORING_ZONE = (2, 1, 4, 3)  # Zone de coloriage
     CANDY_ZONE = (17, 12, 19, 14)  # Zone des bonbons
