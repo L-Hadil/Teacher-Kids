@@ -1,7 +1,9 @@
 
 import pygame
+import logging
 
-
+# Corrected import for logging
+logger = logging.getLogger(__name__)
 class Teacher:
     def __init__(self, x, y, cell_size, icon_path, number_of_kids, tick_delay):
         """
@@ -24,6 +26,7 @@ class Teacher:
         self.tick_delay = tick_delay  # Délai entre les mouvements (en ticks)
         self.tick_count = 0  # Compteur de ticks
         self.targets = []  # Liste des cibles actuelles
+        self.kid_interactions = {}  # Dictionary to track kid interactions
 
     def move(self, environment, children_positions):
         """
@@ -44,7 +47,6 @@ class Teacher:
 
         if not self.targets:
             # Tous les enfants sont dans la zone de coloriage
-
             return
 
         # Étape 2 : Trouver l'enfant le plus proche parmi les cibles
@@ -53,18 +55,18 @@ class Teacher:
             key=lambda child: abs(self.x - child[1][0]) + abs(self.y - child[1][1])
         )
 
-        # Étape 3 : Poursuivre cet enfant
+        # Étape 3 : Poursuivre cet enfant tout en évitant la zone de coloriage
         target_x, target_y = closest_target[1]
-        self.move_towards(target_x, target_y)
+        self.move_towards(target_x, target_y, environment.coloring_zone)
 
-
-    def move_towards(self, target_x, target_y):
+    def move_towards(self, target_x, target_y, coloring_zone):
         """
-        Déplace la maîtresse vers une cible donnée.
+        Déplace la maîtresse vers une cible donnée tout en évitant la zone de coloriage.
 
         Args:
         - target_x (int): Colonne cible.
         - target_y (int): Ligne cible.
+        - coloring_zone (tuple): Coordonnées de la zone de coloriage (xmin, ymin, xmax, ymax).
         """
         # Incrémenter le compteur de ticks
         self.tick_count += 1
@@ -72,16 +74,32 @@ class Teacher:
         # Vérifier si la maîtresse peut bouger
         if self.tick_count >= self.tick_delay:
             self.tick_count = 0  # Réinitialiser le compteur
-            # Calcul du déplacement
-            if self.x < target_x:
+
+            # Calcul du déplacement tout en évitant la zone de coloriage
+            if self.x < target_x and not self.in_coloring_zone(self.x + 1, self.y, coloring_zone):
                 self.x += 1
-            elif self.x > target_x:
+            elif self.x > target_x and not self.in_coloring_zone(self.x - 1, self.y, coloring_zone):
                 self.x -= 1
 
-            if self.y < target_y:
+            if self.y < target_y and not self.in_coloring_zone(self.x, self.y + 1, coloring_zone):
                 self.y += 1
-            elif self.y > target_y:
+            elif self.y > target_y and not self.in_coloring_zone(self.x, self.y - 1, coloring_zone):
                 self.y -= 1
+
+    def in_coloring_zone(self, x, y, coloring_zone):
+        """
+        Vérifie si une position donnée se trouve dans la zone de coloriage.
+
+        Args:
+        - x (int): Colonne.
+        - y (int): Ligne.
+        - coloring_zone (tuple): Coordonnées de la zone de coloriage (xmin, ymin, xmax, ymax).
+
+        Returns:
+        - bool: True si la position est dans la zone de coloriage, sinon False.
+        """
+        xmin, ymin, xmax, ymax = coloring_zone
+        return xmin <= x <= xmax and ymin <= y <= ymax
 
     def draw(self, screen):
         """
@@ -91,3 +109,21 @@ class Teacher:
         - screen (pygame.Surface): Surface de jeu.
         """
         screen.blit(self.icon, (self.x * self.cell_size, self.y * self.cell_size))
+
+    def check_interception(self, children):
+        """
+        Vérifie si la maîtresse intercepte un enfant et met à jour les interactions.
+
+        Args:
+        - children (list): Liste des enfants [Kid, ...]
+        """
+        for child in children:
+            if (child.x, child.y) == (self.x, self.y):
+                child_id = id(child)
+                if child_id not in self.kid_interactions:
+                    self.kid_interactions[child_id] = 0
+                self.kid_interactions[child_id] += 1
+
+                # Trigger homework state for the kid
+                child.start_homework()  # Start homework and freeze the kid
+                logger.info(f"{type(child).__name__} has been captured at ({child.x}, {child.y})!")

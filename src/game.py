@@ -7,18 +7,19 @@ from src.agents.teacher import Teacher
 from src.agents.strategies.direct_to_candy import DirectToCandy
 from src.agents.strategies.longestPath import LongestPath
 from src.agents.strategies.DistractorKid import DistractorKid
+from src.agents.strategies.bfs import bfs
 from src.environment import Environment
 
 
 class Game:
-    def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path, teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path, child4_icon_path):
+    def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path, teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path, child4_icon_path, child5_icon_path):
         """
         Initialise le jeu.
         """
         pygame.init()
 
         self.screen_width = width * cell_size
-        self.screen_height = height * cell_size + 100  # +100 pour la zone des scores
+        self.screen_height = height * cell_size + 300  # +100 pour la zone des scores
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Candy Game Environment")
         self.clock = pygame.time.Clock()
@@ -29,12 +30,13 @@ class Game:
         # Initialiser les enfants et la maîtresse
         self.children = [
             DirectToCandy(2, 1, cell_size, child1_icon_path),
-            LongestPath(2, 2, cell_size, child2_icon_path),
+            LongestPath(2, 2, cell_size, child2_icon_path, candy_zone),
             WaitAndGo(3, 3, cell_size, child3_icon_path),
-            DistractorKid(4, 3, cell_size, child4_icon_path)
+            DistractorKid(4, 3, cell_size, child4_icon_path),
+            bfs(3,2,cell_size,child5_icon_path)
         ]
 
-        self.teacher = Teacher(2, 3, cell_size, teacher_icon_path, number_of_kids=len(self.children), tick_delay=8)
+        self.teacher = Teacher(9, 3, cell_size, teacher_icon_path, number_of_kids=len(self.children), tick_delay=8)
 
         # Contrôle de la boucle principale
         self.running = True  # Initialisation de l'état du jeu
@@ -113,28 +115,54 @@ class Game:
         logger.warning(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
         print(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
 
+    def all_kids_back(self):
+        """Check if all kids are back to their initial positions."""
+        return all(
+            child.x == child.initial_position[0] and child.y == child.initial_position[1] for child in self.children)
+
+    def draw_timer(self, remaining_time):
+        """Draw the remaining time on the screen."""
+        font = pygame.font.Font(None, 30)
+        time_text = f"Time Remaining: {max(remaining_time // 1000, 0)}s"  # Convert ms to seconds
+        text_surface = font.render(time_text, True, (255, 0, 0))  # Red color for timer
+        self.screen.blit(text_surface,
+                         (self.screen_width - 200, self.environment.height * self.environment.cell_size + 10))
+
+
     def run(self):
-        """Boucle principale du jeu."""
-        # Observer l'état initial
+        """Main game loop."""
+        # Observe the initial state
         self.observe_initial_state()
 
         logger.info("Starting the game: Kids and teacher begin their actions!")
+
+        # Record the start time
+        self.start_time = pygame.time.get_ticks()
+        game_duration = 60 * 1000  # 60 seconds in milliseconds
 
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
 
-            # Vérifier si le jeu doit s'arrêter
-            if self.environment.candy_count == 0:
+            # Check if the game should end due to time limit
+            elapsed_time = pygame.time.get_ticks() - self.start_time
+            if elapsed_time > game_duration:
+                logger.warning("Time is up! Ending the game...")
                 self.determine_winner()
                 self.running = False
                 continue
 
-            # Déplacer la maîtresse
+            # Check if the game should end due to game conditions
+            if self.environment.candy_count == 0 and self.all_kids_back():
+                self.determine_winner()
+                self.running = False
+                continue
+
+            # Move the teacher
             self.teacher.move(self.environment, [(child.x, child.y) for child in self.children])
 
-            # Déplacer les enfants
+            # Move the kids
             for child in self.children:
                 all_kids_positions = [(c.x, c.y) for c in self.children if c != child]
                 if isinstance(child, WaitAndGo):
@@ -142,24 +170,34 @@ class Game:
                 else:
                     child.move(self.environment, (self.teacher.x, self.teacher.y))
 
-            # Vérifier les interceptions
+                # Check if the kid returns to their starting position with candy
+                if child.carrying_candy and (child.x, child.y) == child.starting_position:
+                    logger.info(f"Kid at {child.starting_position} delivered candy!")
+                    self.environment.score += 1  # Increment the score
+                    child.carrying_candy = False  # Reset the candy state
+
+            # Check interceptions
             self.check_interception()
 
-            # Dessiner tout
-            self.screen.fill((255, 255, 255))  # Fond blanc
+            # Draw everything
+            self.screen.fill((255, 255, 255))  # White background
             self.environment.draw(self.screen)
             self.teacher.draw(self.screen)
             for child in self.children:
                 child.draw(self.screen)
 
-            # Afficher les scores
+            # Display the score area
             self.draw_score_area()
 
-            # Rafraîchir l'écran
+            # Display the remaining time
+            self.draw_timer(game_duration - elapsed_time)
+
+            # Refresh the screen
             pygame.display.flip()
             self.clock.tick(30)
 
         pygame.quit()
+
 
 
 # Configuration du logger
