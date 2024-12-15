@@ -1,37 +1,35 @@
+from collections import deque
 from src.agents.kid import Kid
-
-
-class DirectToCandy(Kid):
+class DirectToTarget(Child):
     def __init__(self, x, y, cell_size, icon_path):
         super().__init__(x, y, cell_size, icon_path)
 
-    def move(self, environment, teacher_position):
+    def perform_move(self, environment, supervisor_position):
         """
-        Stratégie "directe" : Aller directement à la cible (bonbons ou coloriage).
+        Stratégie "directe" : Aller directement vers la cible (bonbons ou zone de coloriage).
         """
-        # Respecter le délai avant de bouger
-        self.tick_count += 1
-        if self.tick_count < Kid.DEFAULT_TICK_DELAY:
+        # Gestion du délai avant déplacement
+        self.action_count += 1
+        if self.action_count < Child.DEFAULT_ACTION_DELAY:
             return
-        self.tick_count = 0  # Réinitialiser le compteur
+        self.action_count = 0  # Réinitialiser le compteur
 
-        # Si l'agent retourne à sa case initiale (avec un bonbon ou après interception)
-        if self.has_candy and self.path_stack:
-            self.x, self.y = self.path_stack.pop()  # Revenir en arrière via le chemin stocké
-            if not self.path_stack:  # Si arrivé à la position initiale
-                self.has_candy = False
-                self.score += 1
-
+        # Si l'agent retourne à sa position initiale après avoir récupéré un objet
+        if self.is_holding_item and self.movement_stack:
+            self.x, self.y = self.movement_stack.pop()  # Retour via le chemin enregistré
+            if not self.movement_stack:  # Si arrivé à la position initiale
+                self.is_holding_item = False
+                self.points += 1
             return
 
         # Déterminer la cible actuelle
-        target_x, target_y = self.set_target(environment)
+        target_x, target_y = self.find_target(environment)
 
-        # Enregistrer la position actuelle dans la pile avant de bouger
-        if not self.has_candy:
-            self.path_stack.append((self.x, self.y))
+        # Enregistrer la position actuelle avant déplacement
+        if not self.is_holding_item:
+            self.movement_stack.append((self.x, self.y))
 
-        # Se déplacer directement vers la cible
+        # Mouvement direct vers la cible
         if self.x < target_x:
             self.x += 1
         elif self.x > target_x:
@@ -42,5 +40,5 @@ class DirectToCandy(Kid):
         elif self.y > target_y:
             self.y -= 1
 
-        # Vérifier les interactions avec la zone de bonbons
-        self.handle_candy_interactions(environment)
+        # Vérification des interactions avec les objets ou zones de l'environnement
+        self.process_item_interactions(environment)

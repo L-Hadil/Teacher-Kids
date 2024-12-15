@@ -1,109 +1,104 @@
-from src.agents.kid import Kid
-from venv import logger
 from collections import deque
+import heapq  # For priority queue (min-heap)
+
+from src.agents.kid import Kid
+
+
 class LongestPath(Kid):
-    def __init__(self, x, y, cell_size, icon_path, candy_zone):
+    def __init__(self, x, y, cell_size, icon_path):
         super().__init__(x, y, cell_size, icon_path)
+        self.path_stack = deque()  # Initialize an empty deque for the path
         self.initial_position = (x, y)  # Store the initial position
-        self.path_stack = []  # Track the path the agent takes
-        self.candy_zone = candy_zone  # The cell where candy is located
-        self.found_candy = False  # Flag to check if the agent has reached the candy
 
-    def manhattan_distance(self, point1, point2):
-        """
-        Calculate Manhattan distance between two points.
-        """
-        return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
+    def is_border(self, x, y, environment):
+        """Check if the position (x, y) is next to the border of the grid."""
+        return x == 0 or x == environment.width - 1 or y == 0 or y == environment.height - 1
 
-    def move_to_candy(self, target_x, target_y):
+    def dijkstra(self, start, target, environment, teacher_position):
         """
-        Move the agent directly to the candy location (if it's within range).
+        Perform Dijkstra's algorithm to find the shortest path from start to target.
+        The path should avoid the teacher's position and aim for the borders.
         """
-        if self.x < target_x:
-            self.x += 1
-        elif self.x > target_x:
-            self.x -= 1
+        # Priority queue for exploring the least costly paths first
+        pq = [(0, start, [start])]  # (cost, (x, y), path)
+        visited = set()  # Set of visited positions
+        distance_map = {start: 0}  # Map of minimum cost to reach each position
 
-        if self.y < target_y:
-            self.y += 1
-        elif self.y > target_y:
-            self.y -= 1
+        while pq:
+            cost, (x, y), path = heapq.heappop(pq)  # Get the position with the least cost
+
+            # If we have reached the target, return the path
+            if (x, y) == target:
+                return path
+
+            # Explore neighbors (up, down, left, right)
+            for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+                nx, ny = x + dx, y + dy
+
+                # Ensure the new position is within bounds and hasn't been visited
+                if (0 <= nx < environment.width and 0 <= ny < environment.height and
+                        (nx, ny) not in visited and (nx, ny) != teacher_position):
+                    # Favor positions near borders (even if not exactly on borders)
+                    if self.is_border(nx, ny, environment):
+                        new_cost = cost + 1
+                    else:
+                        new_cost = cost + 2  # Slightly higher cost to move away from the border
+
+                    # Only explore this new position if it's cheaper to reach it
+                    if (nx, ny) not in distance_map or new_cost < distance_map[(nx, ny)]:
+                        distance_map[(nx, ny)] = new_cost
+                        heapq.heappush(pq, (new_cost, (nx, ny), path + [(nx, ny)]))
+
+        return []  # Return empty list if no path is found
+
+    def manhattan_distance(self, x1, y1, x2, y2):
+        """Calculate the Manhattan distance between two points."""
+        return abs(x1 - x2) + abs(y1 - y2)
 
     def move(self, environment, teacher_position):
         """
-        Move the agent first to the candy zone, and then return to the initial position.
+        Move the agent using Dijkstra's algorithm first, then fall back to Manhattan distance if no path is found.
+        The agent prefers to stay next to the borders, avoiding the teacher.
         """
+        # Respect the movement delay
         self.tick_count += 1
         if self.tick_count < Kid.DEFAULT_TICK_DELAY:
             return
-        self.tick_count = 0  # Reset the tick counter
+        self.tick_count = 0
 
-        # If the agent has found the candy and is ready to return to its starting position
-        if self.found_candy and self.path_stack:
-            self.x, self.y = self.path_stack.pop()  # Go back via the path stack
-            if not self.path_stack:  # If back at the initial position
-                self.found_candy = False
+        # Determine the current target
+        if self.has_candy:
+            target_x, target_y = self.initial_position  # Return to initial position after collecting candy
+        else:
+            target_x, target_y = self.set_target(environment)  # Move towards candy or coloring zone
+
+        # Use Dijkstra's algorithm to find the shortest path to the target
+        path = self.dijkstra((self.x, self.y), (target_x, target_y), environment, teacher_position)
+
+        if path:
+            # If Dijkstra found a path, store it in the path_stack (excluding the starting position)
+            self.path_stack = deque(path[1:])
+        else:
+            # If Dijkstra failed, fall back to Manhattan distance-based movement
+            # Move directly towards the target using Manhattan distance
+            if self.x < target_x:
+                self.x += 1
+            elif self.x > target_x:
+                self.x -= 1
+
+            if self.y < target_y:
+                self.y += 1
+            elif self.y > target_y:
+                self.y -= 1
+
+        # Step 4: Move to the next position in the path (if any)
+        if self.path_stack:
+            self.x, self.y = self.path_stack.popleft()
+
+            # Check if the agent has returned to its initial position after collecting candy
+            if (self.x, self.y) == self.initial_position and self.has_candy:
                 self.has_candy = False
-                self.score += 1  # Reward for returning to the start position
-            return
+                self.score += 1
 
-        # If not carrying candy, check if we're close enough to the candy zone
-        if not self.found_candy and self.manhattan_distance((self.x, self.y), self.candy_zone) == 0:
-            self.move_to_candy(self.candy_zone[0], self.candy_zone[1])  # Move directly to the candy
-            self.found_candy = True
-            self.has_candy = True  # Candy collected
-            self.score += 1
-            self.handle_candy_interactions(environment)
-            return
-
-        # If not yet near the candy zone, move along the grid's borders
-        closest_border = self.find_closest_border((self.x, self.y), environment)
-        next_x, next_y = self.move_to_border((self.x, self.y), closest_border, environment)
-        self.x, self.y = next_x, next_y
-
-    def find_closest_border(self, position, environment):
-        """
-        Find the closest border to the current position (top, bottom, left, right).
-        """
-        x, y = position
-        distances = {
-            'top': y,  # Distance to top row (y=0)
-            'bottom': environment.height - y - 1,  # Distance to bottom row (y=height-1)
-            'left': x,  # Distance to left column (x=0)
-            'right': environment.width - x - 1  # Distance to right column (x=width-1)
-        }
-
-        # Find the border with the minimum distance
-        closest_border = min(distances, key=distances.get)
-        return closest_border
-
-    def move_to_border(self, position, closest_border, environment):
-        """
-        Move the agent step by step along the closest border towards the target.
-        """
-        x, y = position
-        target_x, target_y = self.set_target(environment)
-
-        # Move along the closest border
-        if closest_border == 'top':
-            if x < target_x:  # Move to the right along the top row
-                next_x, next_y = x + 1, 0
-            else:  # Move to the left along the top row
-                next_x, next_y = x - 1, 0
-        elif closest_border == 'bottom':
-            if x < target_x:  # Move to the right along the bottom row
-                next_x, next_y = x + 1, environment.height - 1
-            else:  # Move to the left along the bottom row
-                next_x, next_y = x - 1, environment.height - 1
-        elif closest_border == 'left':
-            if y < target_y:  # Move down the left column
-                next_x, next_y = 0, y + 1
-            else:  # Move up the left column
-                next_x, next_y = 0, y - 1
-        elif closest_border == 'right':
-            if y < target_y:  # Move down the right column
-                next_x, next_y = environment.width - 1, y + 1
-            else:  # Move up the right column
-                next_x, next_y = environment.width - 1, y - 1
-
-        return next_x, next_y
+        # Handle candy interactions (if applicable)
+        self.handle_candy_interactions(environment)

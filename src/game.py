@@ -30,7 +30,7 @@ class Game:
         # Initialiser les enfants et la maîtresse
         self.children = [
             DirectToCandy(2, 1, cell_size, child1_icon_path),
-            LongestPath(2, 2, cell_size, child2_icon_path, candy_zone),
+            LongestPath(2, 2, cell_size, child2_icon_path),
             WaitAndGo(3, 3, cell_size, child3_icon_path),
             DistractorKid(4, 3, cell_size, child4_icon_path),
             bfs(3,2,cell_size,child5_icon_path)

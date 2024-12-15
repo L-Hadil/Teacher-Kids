@@ -48,12 +48,7 @@ class Kid(ABC):
         else:
             self.x += 1  # Default behavior: moving right
 
-    def start_homework(self):
-        """Start homework and freeze the kid."""
-        if not self.do_homework:
-            self.do_homework = True
-            self.homework_time = 0  # Reset the homework timer
-            logger.info(f"{type(self).__name__} has started doing homework (frozen).")
+
 
     def set_target(self, environment):
         """Determine the current target for the kid."""
