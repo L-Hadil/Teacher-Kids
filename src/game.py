@@ -126,24 +126,26 @@ class Game:
         """Vérifie si la maîtresse intercepte un enfant."""
         for child in self.children:
             if (child.x, child.y) == (self.teacher.x, self.teacher.y):
-                if child.has_candy:
-                    # Si intercepté avec un bonbon
-                    child.has_candy = False
-                    self.environment.candy_count += 1  # Remettre le bonbon dans la zone
-                    self.teacher.score += 1  # Incrémenter le score de la maîtresse
-                    logger.warning(f"Teacher caught {type(child).__name__} with a candy!")
-                # Renvoyer l'enfant à sa position initiale
-                child.x, child.y = child.initial_position
-                child.path_stack.clear()  # Vider la pile pour réinitialiser le chemin
+                child.interception_count += 1  # Incrémenter le compteur d'interceptions
+                if child.interception_count > 5:
+                    child.punish()  # Punir l'enfant s'il est intercepté plus de 5 fois
+                    logger.warning(f"{type(child).__name__} is punished for too many interceptions!")
+                else:
+                    if child.has_candy:
+                        # Si intercepté avec un bonbon
+                        child.has_candy = False
+                        self.environment.candy_count += 1  # Remettre le bonbon dans la zone
+                        self.teacher.score += 1  # Incrémenter le score de la maîtresse
+                        logger.warning(f"Teacher caught {type(child).__name__} with a candy!")
+                    # Renvoyer l'enfant à sa position initiale
+                    child.x, child.y = child.initial_position
+                    child.path_stack.clear()  # Vider la pile pour réinitialiser le chemin
 
     def run(self):
         """Boucle principale du jeu."""
-        # Enregistrer le temps de départ
         self.start_time = pygame.time.get_ticks()  # Temps de départ en millisecondes
 
-        # Observer l'état initial
         self.observe_initial_state()
-
         logger.info("Starting the game: Kids and teacher begin their actions!")
 
         while self.running:
@@ -151,7 +153,6 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.running = False
 
-            # Calculer le temps écoulé
             elapsed_time = (pygame.time.get_ticks() - self.start_time) / 1000  # Convertir en secondes
             if elapsed_time >= self.game_duration:
                 self.determine_winner()  # Déterminer le gagnant
@@ -164,11 +165,13 @@ class Game:
 
             # Déplacer les enfants
             for child in self.children:
-                all_kids_positions = [(c.x, c.y) for c in self.children if c != child]
-                if isinstance(child, WaitAndGo):
-                    child.move(self.environment, (self.teacher.x, self.teacher.y), all_kids_positions)
-                else:
-                    child.move(self.environment, (self.teacher.x, self.teacher.y))
+                child.check_punishment()  # Vérifier si la punition est terminée
+                if not child.is_punished:
+                    all_kids_positions = [(c.x, c.y) for c in self.children if c != child]
+                    if isinstance(child, WaitAndGo):
+                        child.move(self.environment, (self.teacher.x, self.teacher.y), all_kids_positions)
+                    else:
+                        child.move(self.environment, (self.teacher.x, self.teacher.y))
 
             # Vérifier les interceptions
             self.check_interception()
