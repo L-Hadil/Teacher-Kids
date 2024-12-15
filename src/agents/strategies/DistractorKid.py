@@ -12,6 +12,7 @@ class DistractorKid(Kid):
         self.initial_position = (x, y)
         self.distracting = True
         self.current_target = None
+        self.path_taken = []  # Store the path taken by the agent
 
     def move(self, environment, teacher_position):
         self.tick_count += 1
@@ -43,6 +44,7 @@ class DistractorKid(Kid):
 
         # Déplacement vers la cible
         if self.current_target:
+            self.path_taken.append((self.x, self.y))  # Store the current position in the path
             self.move_towards_target(*self.current_target)
 
         # Gérer les interactions avec les bonbons
@@ -51,14 +53,16 @@ class DistractorKid(Kid):
     def return_to_coloring_zone(self, environment, teacher_position):
         """
         Retourne à la position initiale tout en maximisant la distance avec la maîtresse.
+        Utilise le chemin suivi au départ pour revenir.
         """
-        farthest_path = self.calculate_longest_path_to_target(
-            self.initial_position, teacher_position, environment
-        )
-        if farthest_path:
-            next_position = farthest_path.pop(0)
+        if self.path_taken:  # If there's a recorded path, retrace it
+            next_position = self.path_taken.pop()
             self.x, self.y = next_position
             logger.info(f"Returning to coloring zone at {next_position}.")
+        else:
+            # If no path has been stored (e.g., if the agent hasn't moved yet), return directly to initial position
+            self.x, self.y = self.initial_position
+            logger.info(f"Returning to initial position {self.initial_position}.")
 
         if (self.x, self.y) == self.initial_position:
             self.has_candy = False
@@ -73,38 +77,8 @@ class DistractorKid(Kid):
         for x in range(environment.candy_zone[0], environment.candy_zone[2] + 1):
             for y in range(environment.candy_zone[1], environment.candy_zone[3] + 1):
                 if environment.candy_zone:
-
                     return (x, y)
         return None
-
-    def calculate_longest_path_to_target(self, target, teacher_position, environment):
-        """
-        Calcule un chemin vers la cible (position initiale) tout en maximisant la distance avec la maîtresse.
-        """
-        paths = self.find_all_paths(self.x, self.y, target, environment)
-        if not paths:
-            return []
-        farthest_path = max(
-            paths, key=lambda path: self.calculate_path_distance_from_teacher(path, teacher_position)
-        )
-        return farthest_path
-
-    def calculate_path_distance_from_teacher(self, path, teacher_position):
-        """
-        Calcule la distance moyenne d'un chemin par rapport à la position de la maîtresse.
-        """
-        return sum(
-            math.sqrt((x - teacher_position[0]) ** 2 + (y - teacher_position[1]) ** 2)
-            for x, y in path
-        ) / len(path)
-
-    def find_all_paths(self, start_x, start_y, target, environment):
-        """
-        Trouve tous les chemins possibles entre deux points.
-        Utilise une recherche simple pour retourner plusieurs chemins.
-        """
-        # Implémentez une recherche en largeur ou une méthode DFS ici
-        pass
 
     def calculate_distracting_position(self, environment, teacher_position):
         """
@@ -131,3 +105,4 @@ class DistractorKid(Kid):
             self.y += 1
         elif self.y > target_y:
             self.y -= 1
+

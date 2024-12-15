@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from venv import logger
 
 class Kid(ABC):
-    DEFAULT_TICK_DELAY = 10  # Vitesse par défaut pour tous les enfants
+    DEFAULT_TICK_DELAY = 15  # Vitesse par défaut pour tous les enfants
     PUNISHMENT_DURATION = 5000  # Durée de punition en millisecondes (15 secondes)
 
     def __init__(self, x, y, cell_size, icon_path):

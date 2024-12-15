@@ -1,10 +1,16 @@
+import time
+from gc import freeze
+
+import pygame
+
 from src.game import Game
 
 if __name__ == "__main__":
+    pygame.mixer.init()
     GRID_WIDTH = 20
     GRID_HEIGHT = 15
     CELL_SIZE = 40
-    GAME_DURATION = 120  # Temps limite en secondes (2 minutes)
+    GAME_DURATION = 45  # Temps limite en secondes (2 minutes)
     COLORING_ZONE = (2, 1, 4, 3)  # Zone de coloriage
     CANDY_ZONE = (17, 12, 19, 14)  # Zone des bonbons
 
@@ -15,7 +21,7 @@ if __name__ == "__main__":
     CHILD3_ICON_PATH = "../assets/WaitAndGo.png"
     CHILD4_ICON_PATH = "../assets/DistractorKid.png"
     CHILD5_ICON_PATH = "../assets/bfs.png"
-
+    SOUND_EFFECT_PATH = "../assets/start.mp3"
     # Demander le nombre de bonbons à l'utilisateur
     while True:
         try:
@@ -26,7 +32,9 @@ if __name__ == "__main__":
                 print("Veuillez entrer un nombre compris entre 1 et 50.")
         except ValueError:
             print("Erreur : Veuillez entrer un nombre entier.")
-
+    sound_effect = pygame.mixer.Sound(SOUND_EFFECT_PATH)  # Load the sound effect
+    sound_effect.play()
+    time.sleep(1)
     game = Game(
         GRID_WIDTH,
         GRID_HEIGHT,
@@ -43,4 +51,5 @@ if __name__ == "__main__":
         CHILD5_ICON_PATH,
         game_duration=GAME_DURATION
     )
+
     game.run()

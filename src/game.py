@@ -12,7 +12,9 @@ from src.agents.strategies.longestPath import LongestPath
 from src.agents.strategies.DistractorKid import DistractorKid
 from src.environment import Environment
 from src.agents.strategies.bfs import bfs
-
+pygame.mixer.init()
+winK_sound = pygame.mixer.Sound("../assets/kids.mp3")
+winT_sound = pygame.mixer.Sound("..//assets/teacher.mp3")
 class Game:
     def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path, teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path, child4_icon_path, child5_icon_path, game_duration):
         """
@@ -34,16 +36,16 @@ class Game:
 
         # Initialiser les enfants et la maîtresse
         self.children = [
+            bfs(3, 2, cell_size, child5_icon_path),
             DirectToCandy(2, 1, cell_size, child1_icon_path),
             LongestPath(2, 2, cell_size, child2_icon_path),
             WaitAndGo(3, 3, cell_size, child3_icon_path),
             DistractorKid(4, 3, cell_size, child4_icon_path),
-            bfs(3, 2, cell_size, child5_icon_path),
             bfs(4, 2, cell_size, child5_icon_path),
             LongestPath(4, 1, cell_size, child2_icon_path)
         ]
 
-        self.teacher = Teacher(6, 3, cell_size, teacher_icon_path, number_of_kids=len(self.children), tick_delay=8)
+        self.teacher = Teacher(6, 3, cell_size, teacher_icon_path, number_of_kids=len(self.children), tick_delay=16)
 
         # Contrôle de la boucle principale
         self.running = True  # Initialisation de l'état du jeu
@@ -102,6 +104,7 @@ class Game:
             y_position += line_spacing  # Ajouter un espacement entre les lignes
 
         # 2. Afficher le score de la maîtresse
+
         teacher_score_text = f"Teacher Score: {self.teacher.score}"
         teacher_score_surface = font.render(teacher_score_text, True, (0, 0, 255))  # Texte bleu
         self.screen.blit(teacher_score_surface, (x_position, y_position))
@@ -123,23 +126,37 @@ class Game:
             time_x_position, self.environment.height * self.environment.cell_size + 10))  # Même hauteur que les scores
 
     def determine_winner(self):
-        """Détermine le gagnant en fonction des scores."""
-        # Find the maximum score
-        max_score = max(child.score for child in self.children)
+        """Détermine le gagnant en comparant la somme des scores des enfants avec celui de la maîtresse."""
+        # Calculate the total score of all children
+        total_kids_score = sum(child.score for child in self.children)
 
-        # Find all children who have the maximum score
-        winners = [child for child in self.children if child.score == max_score]
+        # Get the teacher's score
+        teacher_score = self.teacher.score
 
-        if len(winners) > 1:
-            # There is a tie
-            winner_names = ", ".join([type(child).__name__ for child in winners])
-            logger.warning(f"Game Over! It's a tie between: {winner_names} with {max_score} candies collected each.")
-            print(f"Game Over! It's a tie between: {winner_names} with {max_score} candies collected each.")
+        # Identify the kids with the highest individual scores
+        max_kid_score = max(child.score for child in self.children)
+        top_kids = [child for child in self.children if child.score == max_kid_score]
+        top_kids_names = ", ".join(type(kid).__name__ for kid in top_kids)
+
+        # Determine the winner
+        if total_kids_score > teacher_score:
+            logger.warning(
+                f"Game Over! Kids win with a total score of {total_kids_score} candies against the Teacher's {teacher_score} candies.")
+            winK_sound.play()
+            print(
+                f"Game Over! Kids win with a total score of {total_kids_score} candies against the Teacher's {teacher_score} candies.")
+            print(f"Kids with the highest individual scores: {top_kids_names} (Score: {max_kid_score})")
+        elif teacher_score > total_kids_score:
+            logger.warning(
+                f"Game Over! Teacher wins with {teacher_score} candies against the Kids' total of {total_kids_score} candies.")
+            winT_sound.play()
+            print(
+                f"Game Over! Teacher wins with {teacher_score} candies against the Kids' total of {total_kids_score} candies.")
         else:
-            # There is a single winner
-            winner = winners[0]
-            logger.warning(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
-            print(f"Game Over! Winner: {type(winner).__name__} with {winner.score} candies collected.")
+            logger.warning(f"Game Over! It's a tie! Both Kids and Teacher have {total_kids_score} candies each.")
+            print(f"Game Over! It's a tie! Both Kids and Teacher have {total_kids_score} candies each.")
+            print(f"Kids with the highest individual scores: {top_kids_names} (Score: {max_kid_score})")
+
 
     def check_interception(self):
         """Vérifie si la maîtresse intercepte un enfant."""
@@ -163,6 +180,7 @@ class Game:
     def run(self):
         """Boucle principale du jeu."""
         self.start_time = pygame.time.get_ticks()  # Temps de départ en millisecondes
+        self.game_paused = False  # Flag to control if the game is paused
 
         self.observe_initial_state()
         logger.info("Starting the game: Kids and teacher begin their actions!")
@@ -172,28 +190,30 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.running = False
 
+            # Calculate elapsed time
             elapsed_time = (pygame.time.get_ticks() - self.start_time) / 1000  # Convertir en secondes
-            if elapsed_time >= self.game_duration:
+            if elapsed_time >= self.game_duration and not self.game_paused:
                 self.determine_winner()  # Déterminer le gagnant
                 logger.warning("Time's up! The game is over.")
-                self.running = False
+                self.game_paused = True  # Pause the game when time is up
                 continue
 
-            # Déplacer la maîtresse
-            self.teacher.move(self.environment, [(child.x, child.y) for child in self.children])
+            if not self.game_paused:
+                # Déplacer la maîtresse
+                self.teacher.move(self.environment, [(child.x, child.y) for child in self.children])
 
-            # Déplacer les enfants
-            for child in self.children:
-                child.check_punishment()  # Vérifier si la punition est terminée
-                if not child.is_punished:
-                    all_kids_positions = [(c.x, c.y) for c in self.children if c != child]
-                    if isinstance(child, WaitAndGo):
-                        child.move(self.environment, (self.teacher.x, self.teacher.y), all_kids_positions)
-                    else:
-                        child.move(self.environment, (self.teacher.x, self.teacher.y))
+                # Déplacer les enfants
+                for child in self.children:
+                    child.check_punishment()  # Vérifier si la punition est terminée
+                    if not child.is_punished:
+                        all_kids_positions = [(c.x, c.y) for c in self.children if c != child]
+                        if isinstance(child, WaitAndGo):
+                            child.move(self.environment, (self.teacher.x, self.teacher.y), all_kids_positions)
+                        else:
+                            child.move(self.environment, (self.teacher.x, self.teacher.y))
 
-            # Vérifier les interceptions
-            self.check_interception()
+                # Vérifier les interceptions
+                self.check_interception()
 
             # Dessiner tout
             self.screen.fill((255, 255, 255))  # Fond blanc
