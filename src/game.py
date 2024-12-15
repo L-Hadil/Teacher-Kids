@@ -11,7 +11,9 @@ from src.environment import Environment
 
 
 class Game:
-    def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path, teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path, child4_icon_path,game_duration):
+    def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path,
+                 teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path, child4_icon_path,
+                 game_duration, potion_icon_path):
         """
         Initialise le jeu.
         """
@@ -24,7 +26,8 @@ class Game:
         self.clock = pygame.time.Clock()
 
         # Initialiser l'environnement
-        self.environment = Environment(width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path)
+        self.environment = Environment(width, height, cell_size, candy_zone, coloring_zone, candy_count,
+                                       candy_icon_path, potion_icon_path)
         self.game_duration = game_duration  # Durée totale en secondes
         self.start_time = None  # Temps de début
         self.screen_height = height * cell_size + 800  # Hauteur totale ajustée pour la grande zone
@@ -41,8 +44,6 @@ class Game:
 
         # Contrôle de la boucle principale
         self.running = True  # Initialisation de l'état du jeu
-
-
 
     def observe_initial_state(self, observation_time=3):
         """
@@ -125,21 +126,30 @@ class Game:
     def check_interception(self):
         """Vérifie si la maîtresse intercepte un enfant."""
         for child in self.children:
+            # Ignorer les enfants invisibles
+            if child.is_invisible:
+                continue
+
+            # Vérifier si la maîtresse et l'enfant partagent la même position
             if (child.x, child.y) == (self.teacher.x, self.teacher.y):
                 child.interception_count += 1  # Incrémenter le compteur d'interceptions
+                print(
+                    f"Teacher intercepted {type(child).__name__} at ({child.x}, {child.y}). Count: {child.interception_count}")
+
                 if child.interception_count > 5:
                     child.punish()  # Punir l'enfant s'il est intercepté plus de 5 fois
-                    logger.warning(f"{type(child).__name__} is punished for too many interceptions!")
+                    print(f"{type(child).__name__} is punished for too many interceptions!")
                 else:
                     if child.has_candy:
                         # Si intercepté avec un bonbon
                         child.has_candy = False
                         self.environment.candy_count += 1  # Remettre le bonbon dans la zone
                         self.teacher.score += 1  # Incrémenter le score de la maîtresse
-                        logger.warning(f"Teacher caught {type(child).__name__} with a candy!")
-                    # Renvoyer l'enfant à sa position initiale
+                        print(f"Teacher caught {type(child).__name__} with a candy!")
+
+                    # Réinitialiser l'enfant à sa position initiale
                     child.x, child.y = child.initial_position
-                    child.path_stack.clear()  # Vider la pile pour réinitialiser le chemin
+                    child.path_stack.clear()  # Réinitialiser le chemin
 
     def run(self):
         """Boucle principale du jeu."""
@@ -160,18 +170,22 @@ class Game:
                 self.running = False
                 continue
 
+            # Mettre à jour les potions
+            self.environment.update_potions()
+
+            # Préparer les états des enfants
+            children_states = [{"is_invisible": child.is_invisible} for child in self.children]
+
             # Déplacer la maîtresse
-            self.teacher.move(self.environment, [(child.x, child.y) for child in self.children])
+            self.teacher.move(self.environment, [(child.x, child.y) for child in self.children], children_states)
 
             # Déplacer les enfants
             for child in self.children:
-                child.check_punishment()  # Vérifier si la punition est terminée
-                if not child.is_punished:
-                    all_kids_positions = [(c.x, c.y) for c in self.children if c != child]
-                    if isinstance(child, WaitAndGo):
-                        child.move(self.environment, (self.teacher.x, self.teacher.y), all_kids_positions)
-                    else:
-                        child.move(self.environment, (self.teacher.x, self.teacher.y))
+                all_kids_positions = [(c.x, c.y) for c in self.children if c != child]
+                if isinstance(child, WaitAndGo):
+                    child.move(self.environment, (self.teacher.x, self.teacher.y), all_kids_positions)
+                else:
+                    child.move(self.environment, (self.teacher.x, self.teacher.y))
 
             # Vérifier les interceptions
             self.check_interception()
@@ -187,7 +201,8 @@ class Game:
             self.draw_score_area()
 
             # Rafraîchir l'écran
-            pygame.display.flip()
+            pygame.display.flip()  # Correctement appelé ici
+
             self.clock.tick(30)
 
         pygame.quit()

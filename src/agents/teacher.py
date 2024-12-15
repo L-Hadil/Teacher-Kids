@@ -1,9 +1,8 @@
-
 import pygame
 
 
 class Teacher:
-    def __init__(self, x, y, cell_size, icon_path, number_of_kids, tick_delay,):
+    def __init__(self, x, y, cell_size, icon_path, number_of_kids, tick_delay):
         """
         Initialise la maîtresse.
 
@@ -26,38 +25,34 @@ class Teacher:
         self.targets = []  # Liste des cibles actuelles
         self.score = 0  # Score de la maîtresse
 
-    def move(self, environment, children_positions):
+    def move(self, environment, children_positions, children_states):
         """
-        Déplace la maîtresse selon sa stratégie.
+        Déplace la maîtresse selon sa stratégie, en ignorant les enfants invisibles.
 
         Args:
         - environment (Environment): L'environnement du jeu.
         - children_positions (list): Liste des positions des enfants [(x, y), ...].
+        - children_states (list): Liste des états des enfants (dictionnaire contenant "is_invisible").
         """
-        initial_position = (self.x, self.y)
-
-        # Étape 1 : Identifier tous les enfants hors de la zone de coloriage
         self.targets = [
-            (i, pos) for i, pos in enumerate(children_positions)
-            if not (environment.coloring_zone[0] <= pos[0] <= environment.coloring_zone[2] and
-                    environment.coloring_zone[1] <= pos[1] <= environment.coloring_zone[3])
+            (i, pos) for i, (pos, state) in enumerate(zip(children_positions, children_states))
+            if not state["is_invisible"]  # Ignorer les enfants invisibles
+               and not (environment.coloring_zone[0] <= pos[0] <= environment.coloring_zone[2] and
+                        environment.coloring_zone[1] <= pos[1] <= environment.coloring_zone[3])
         ]
 
         if not self.targets:
-            # Tous les enfants sont dans la zone de coloriage
+            return  # Aucun enfant visible
 
-            return
-
-        # Étape 2 : Trouver l'enfant le plus proche parmi les cibles
+        # Trouver la cible la plus proche
         closest_target = min(
             self.targets,
             key=lambda child: abs(self.x - child[1][0]) + abs(self.y - child[1][1])
         )
 
-        # Étape 3 : Poursuivre cet enfant
+        # Se déplacer vers cette cible
         target_x, target_y = closest_target[1]
         self.move_towards(target_x, target_y)
-
 
     def move_towards(self, target_x, target_y):
         """
