@@ -4,7 +4,7 @@ if __name__ == "__main__":
     GRID_WIDTH = 20
     GRID_HEIGHT = 15
     CELL_SIZE = 40
-
+    GAME_DURATION = 120  # Temps limite en secondes (2 minutes)
     COLORING_ZONE = (2, 1, 4, 3)  # Zone de coloriage
     CANDY_ZONE = (17, 12, 19, 14)  # Zone des bonbons
 
@@ -40,6 +40,7 @@ if __name__ == "__main__":
         CHILD2_ICON_PATH,
         CHILD3_ICON_PATH,
         CHILD4_ICON_PATH,
-        CHILD5_ICON_PATH
+        CHILD5_ICON_PATH,
+        game_duration=GAME_DURATION
     )
     game.run()

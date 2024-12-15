@@ -72,7 +72,8 @@ class DistractorKid(Kid):
         """
         for x in range(environment.candy_zone[0], environment.candy_zone[2] + 1):
             for y in range(environment.candy_zone[1], environment.candy_zone[3] + 1):
-                if environment.is_candy_at(x, y):
+                if environment.candy_zone:
+
                     return (x, y)
         return None
 

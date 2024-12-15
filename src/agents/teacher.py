@@ -1,11 +1,9 @@
 
 import pygame
-import logging
 
-# Corrected import for logging
-logger = logging.getLogger(__name__)
+
 class Teacher:
-    def __init__(self, x, y, cell_size, icon_path, number_of_kids, tick_delay):
+    def __init__(self, x, y, cell_size, icon_path, number_of_kids, tick_delay,):
         """
         Initialise la maîtresse.
 
@@ -26,7 +24,7 @@ class Teacher:
         self.tick_delay = tick_delay  # Délai entre les mouvements (en ticks)
         self.tick_count = 0  # Compteur de ticks
         self.targets = []  # Liste des cibles actuelles
-        self.kid_interactions = {}  # Dictionary to track kid interactions
+        self.score = 0  # Score de la maîtresse
 
     def move(self, environment, children_positions):
         """
@@ -47,6 +45,7 @@ class Teacher:
 
         if not self.targets:
             # Tous les enfants sont dans la zone de coloriage
+
             return
 
         # Étape 2 : Trouver l'enfant le plus proche parmi les cibles
@@ -55,7 +54,7 @@ class Teacher:
             key=lambda child: abs(self.x - child[1][0]) + abs(self.y - child[1][1])
         )
 
-        # Étape 3 : Poursuivre cet enfant tout en évitant la zone de coloriage
+        # Étape 3 : Poursuivre cet enfant
         target_x, target_y = closest_target[1]
         self.move_towards(target_x, target_y, environment.coloring_zone)
 
@@ -110,20 +109,3 @@ class Teacher:
         """
         screen.blit(self.icon, (self.x * self.cell_size, self.y * self.cell_size))
 
-    def check_interception(self, children):
-        """
-        Vérifie si la maîtresse intercepte un enfant et met à jour les interactions.
-
-        Args:
-        - children (list): Liste des enfants [Kid, ...]
-        """
-        for child in children:
-            if (child.x, child.y) == (self.x, self.y):
-                child_id = id(child)
-                if child_id not in self.kid_interactions:
-                    self.kid_interactions[child_id] = 0
-                self.kid_interactions[child_id] += 1
-
-                # Trigger homework state for the kid
-                child.start_homework()  # Start homework and freeze the kid
-                logger.info(f"{type(child).__name__} has been captured at ({child.x}, {child.y})!")
