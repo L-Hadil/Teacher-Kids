@@ -32,7 +32,7 @@ class Kid(ABC):
     def move(self, environment, teacher_position):
         """
         Contrôle le mouvement en respectant la vitesse fixée par DEFAULT_TICK_DELAY.
-        Priorise les potions si elles sont actives.
+        Si l'enfant est puni ou invisible, il ne bouge pas.
         """
         # Vérifier la fin de la punition
         self.check_punishment()
@@ -50,68 +50,6 @@ class Kid(ABC):
             return
         self.tick_count = 0  # Réinitialiser le compteur
 
-        # Prioriser les potions si elles sont actives
-        nearest_potion = self.find_nearest_potion(environment)
-        if nearest_potion:
-            self.move_towards(nearest_potion[0], nearest_potion[1])
-            self.handle_potion_interactions(environment)  # Vérifie si l'enfant atteint la potion
-            return
-
-    def move_towards(self, target_x, target_y):
-        """
-        Déplace l'enfant vers une cible donnée.
-
-        Args:
-        - target_x (int): Coordonnée X de la cible.
-        - target_y (int): Coordonnée Y de la cible.
-        """
-        if self.x < target_x:
-            self.x += 1
-        elif self.x > target_x:
-            self.x -= 1
-
-        if self.y < target_y:
-            self.y += 1
-        elif self.y > target_y:
-            self.y -= 1
-
-    def find_nearest_potion(self, environment):
-        """
-        Trouve la potion active la plus proche.
-
-        Args:
-        - environment (Environment): L'environnement du jeu.
-
-        Returns:
-        - tuple: Coordonnées (x, y) de la potion la plus proche, ou None si aucune potion active.
-        """
-        nearest_potion = None
-        nearest_distance = float('inf')
-        for potion in environment.potions:
-            if potion["active"]:
-                distance = abs(self.x - potion["position"][0]) + abs(self.y - potion["position"][1])
-                if distance < nearest_distance:
-                    nearest_distance = distance
-                    nearest_potion = potion["position"]
-        return nearest_potion
-
-    def handle_candy_interactions(self, environment):
-        """
-        Gère les interactions de l'enfant avec la zone de bonbons et de coloriage.
-        """
-        if self.has_candy and self.path_stack and (self.x, self.y) == self.path_stack[-1]:
-            self.path_stack.pop()  # Revenir via le chemin inverse
-            if not self.path_stack:  # Si arrivé à la position initiale
-                self.has_candy = False
-                self.score += 1
-                print(f"{type(self).__name__} delivered candy and scored! Current score: {self.score}")
-
-        elif not self.has_candy and (self.x, self.y) == self.set_target(environment):
-            if environment.candy_count > 0:
-                self.has_candy = True
-                environment.candy_count -= 1
-                print(f"{type(self).__name__} picked a candy! Remaining candies: {environment.candy_count}")
-
     def handle_potion_interactions(self, environment):
         """
         Vérifie et applique l'effet de la potion si l'enfant la ramasse.
@@ -119,6 +57,7 @@ class Kid(ABC):
         potion = environment.is_potion_at(self.x, self.y)
         if potion:
             self.become_invisible()  # Activer l'effet d'invisibilité
+            self.path_stack.clear()  # Effacer le chemin stocké pour éviter tout retour inutile
             environment.collect_potion(self.x, self.y)  # Retirer la potion
             print(f"{type(self).__name__} ate a potion and became invisible!")
 
@@ -191,3 +130,61 @@ class Kid(ABC):
             rect = pygame.Rect(self.x * self.cell_size, self.y * self.cell_size, self.cell_size, self.cell_size)
             pygame.draw.rect(screen, (0, 255, 0), rect, 3)  # Vert avec une bordure de 3 pixels
             screen.blit(self.icon, (self.x * self.cell_size, self.y * self.cell_size))
+
+    def find_nearest_potion(self, environment):
+        """
+        Trouve la potion active la plus proche.
+
+        Args:
+        - environment (Environment): L'environnement du jeu.
+
+        Returns:
+        - tuple: Coordonnées (x, y) de la potion la plus proche, ou None si aucune potion active.
+        """
+        nearest_potion = None
+        nearest_distance = float('inf')
+        for potion in environment.potions:
+            if potion["active"]:  # Vérifie si la potion est active
+                distance = abs(self.x - potion["position"][0]) + abs(self.y - potion["position"][1])
+                if distance < nearest_distance:
+                    nearest_distance = distance
+                    nearest_potion = potion["position"]
+        return nearest_potion
+
+    def move_towards(self, target_x, target_y):
+        """
+        Déplace l'enfant d'une étape vers une cible donnée.
+
+        Args:
+        - target_x (int): Coordonnée X de la cible.
+        - target_y (int): Coordonnée Y de la cible.
+        """
+        if self.x < target_x:
+            self.x += 1
+        elif self.x > target_x:
+            self.x -= 1
+
+        if self.y < target_y:
+            self.y += 1
+        elif self.y > target_y:
+            self.y -= 1
+
+    def handle_candy_interactions(self, environment):
+        """
+        Gère les interactions de l'enfant avec la zone de bonbons.
+
+        Args:
+        - environment (Environment): L'environnement de jeu.
+        """
+        if not self.has_candy and environment.is_candy_at(self.x, self.y):
+            # Ramasser un bonbon
+            if environment.candy_count > 0:
+                self.has_candy = True
+                environment.candy_count -= 1
+                print(f"{type(self).__name__} picked a candy! Remaining candies: {environment.candy_count}")
+
+        elif self.has_candy and (self.x, self.y) == self.initial_position:
+            # Retourner à la position initiale avec un bonbon pour marquer un point
+            self.has_candy = False
+            self.score += 1
+            print(f"{type(self).__name__} scored a point! Current score: {self.score}")

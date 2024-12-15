@@ -9,7 +9,7 @@ class DirectToCandy(Kid):
     def move(self, environment, teacher_position):
         """
         Stratégie "directe" : Priorise la potion si disponible, puis cherche un bonbon.
-        Utilise l'immunité pour ramasser un bonbon et marquer un point.
+        Recalcule dynamiquement le chemin après chaque étape importante.
         """
         # Respecter le délai avant de bouger
         self.tick_count += 1
@@ -31,37 +31,42 @@ class DirectToCandy(Kid):
         if not self.is_invisible:
             self.has_taken_potion = False
 
+        # Vérifier si l'enfant est à sa position initiale avec un bonbon
+        if self.has_candy and (self.x, self.y) == self.initial_position:
+            self.has_candy = False  # Déposer le bonbon
+            self.score += 1  # Incrémenter le score
+            self.path_stack.clear()  # Effacer le chemin précédent
+            print(f"{type(self).__name__} scored a point! Current score: {self.score}")
+
+            # Recalculer la cible après avoir marqué un point
+            if environment.candy_count > 0:
+                target_x, target_y = self.set_target(environment)  # Trouver un nouveau bonbon
+                self.move_towards(target_x, target_y)
+            return
+
         # Prioriser la potion si elle est disponible et pas encore prise
         if not self.has_taken_potion:
             nearest_potion = self.find_nearest_potion(environment)
             if nearest_potion:
+                # Se déplacer vers la potion
                 self.move_towards(nearest_potion[0], nearest_potion[1])
                 self.handle_potion_interactions(environment)  # Ramasse la potion
                 if self.is_invisible:  # Si la potion a été ramassée
                     self.has_taken_potion = True
-                return  # Continue directement depuis la position actuelle
+                    self.path_stack.clear()  # Effacer le chemin précédent pour éviter un retour inutile
 
-        # Si l'agent retourne à sa case initiale (avec un bonbon ou après interception)
-        if self.has_candy or self.returned_to_base and self.path_stack:
-            self.x, self.y = self.path_stack.pop()  # Revenir en arrière via le chemin stocké
-            if not self.path_stack and self.returned_to_base:  # Si arrivé à la position initiale après échec
-                self.returned_to_base = True
-            elif not self.path_stack and self.has_candy:  # Si arrivé à la position initiale avec un bonbon
-                self.has_candy = False
-                self.score += 1  # Marquer le point
-                print(f"{type(self).__name__} scored a point! Current score: {self.score}")
-            return
-
-        # Vérifier si la zone de bonbons est vide
-        if not self.has_candy and environment.candy_count == 0:
-            # Préparer le retour en suivant le chemin inversé
-            self.returned_to_base = True
-            return
+                    # Recalculer la stratégie : déterminer la prochaine cible
+                    if not self.has_candy:
+                        target_x, target_y = self.set_target(environment)  # Trouver un bonbon
+                    else:
+                        target_x, target_y = self.initial_position  # Retourner à la base
+                    self.move_towards(target_x, target_y)  # Continuer immédiatement
+                return
 
         # Déterminer la cible actuelle (bonbon ou coloriage)
         target_x, target_y = self.set_target(environment)
 
-        # Enregistrer la position actuelle dans la pile avant de bouger (si utile)
+        # Enregistrer la position actuelle dans la pile avant de bouger
         if not self.has_candy:
             self.path_stack.append((self.x, self.y))
 

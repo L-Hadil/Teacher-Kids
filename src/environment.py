@@ -83,6 +83,22 @@ class Environment:
                 return potion
         return None
 
+    def is_candy_at(self, x, y):
+        """
+        Vérifie si un bonbon est présent à une position donnée.
+
+        Args:
+        - x (int): Coordonnée X.
+        - y (int): Coordonnée Y.
+
+        Returns:
+        - bool: True si un bonbon est présent à cette position, False sinon.
+        """
+        # Vérifie si la position est dans la zone des bonbons et qu'il reste des bonbons
+        return (self.candy_zone[0] <= x <= self.candy_zone[2] and
+                self.candy_zone[1] <= y <= self.candy_zone[3] and
+                self.candy_count > 0)
+
     def collect_potion(self, x, y):
         """
         Supprime une potion lorsqu'elle est ramassée.

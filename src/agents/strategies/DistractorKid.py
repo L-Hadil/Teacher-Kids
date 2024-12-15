@@ -15,39 +15,69 @@ class DistractorKid(Kid):
         self.returned_to_base = False  # Indique si l'agent est déjà revenu à la base après un échec
 
     def move(self, environment, teacher_position):
+        """
+        Stratégie de distraction : Distraire la maîtresse ou chercher un bonbon.
+        Recalcule dynamiquement le chemin après chaque étape importante.
+        """
+        # Respecter le délai avant de bouger
         self.tick_count += 1
         if self.tick_count < Kid.DEFAULT_TICK_DELAY:
             return
-        self.tick_count = 0
+        self.tick_count = 0  # Réinitialiser le compteur
 
-        # Si l'agent a un bonbon, il retourne à sa position initiale
-        if self.has_candy:
-            self.return_to_coloring_zone(environment, teacher_position)
+        # Vérifier la fin de la punition
+        self.check_punishment()
+
+        # Vérifier la fin de l'invisibilité
+        self.check_invisibility()
+
+        # Si l'agent est puni, il ne bouge pas
+        if self.is_punished:
             return
 
-        # Si l'agent est déjà revenu à la base après avoir trouvé la zone de bonbons vide
-        if self.returned_to_base:
-            return  # Rester dans la zone de coloriage
+        # Réinitialiser `has_taken_potion` si l'effet d'invisibilité est terminé
+        if not self.is_invisible:
+            self.has_taken_potion = False
 
-        # Déterminer la distance à la maîtresse
-        distance_to_teacher = math.sqrt(
-            (self.x - teacher_position[0]) ** 2 + (self.y - teacher_position[1]) ** 2
-        )
+        # Vérifier si l'agent est à sa position initiale avec un bonbon
+        if self.has_candy and (self.x, self.y) == self.initial_position:
+            self.has_candy = False  # Déposer le bonbon
+            self.score += 1  # Incrémenter le score
+            print(f"{type(self).__name__} scored a point! Current score: {self.score}")
 
-        # Définir le mode (distraction ou collecte de bonbons)
-        if distance_to_teacher <= self.DISTRACTION_RADIUS:
-            self.distracting = True
-        elif distance_to_teacher > self.FAR_DISTANCE_THRESHOLD:
-            self.distracting = False
+            # Recalculer la cible après avoir marqué un point
+            if environment.candy_count > 0:
+                self.current_target = self.find_candy(environment)  # Trouver un nouveau bonbon
+            else:
+                self.current_target = None  # Aucune cible disponible
+            return
 
-        # Comportement basé sur le mode
+        # Prioriser la potion si elle est disponible et pas encore prise
+        if not self.has_taken_potion:
+            nearest_potion = self.find_nearest_potion(environment)
+            if nearest_potion:
+                # Se déplacer vers la potion
+                self.move_towards(nearest_potion[0], nearest_potion[1])
+                self.handle_potion_interactions(environment)  # Ramasse la potion
+                if self.is_invisible:  # Si la potion a été ramassée
+                    self.has_taken_potion = True
+
+                    # Recalculer la stratégie : continuer la distraction ou chercher un bonbon
+                    if self.distracting:
+                        self.current_target = self.calculate_distracting_position(environment, teacher_position)
+                    elif not self.has_candy:
+                        self.current_target = self.find_candy(environment)
+                    return
+                return
+
+        # Mode distraction ou collecte
         if self.distracting:
             self.current_target = self.calculate_distracting_position(environment, teacher_position)
         else:
             self.current_target = self.find_candy(environment)
 
-        # Si la zone de bonbons est vide et il n'y a pas de cible
-        if not self.has_candy and not self.current_target and environment.candy_count == 0:
+        # Si aucune cible n'est trouvée
+        if not self.current_target and not self.has_candy:
             self.return_to_coloring_zone(environment, teacher_position, back_to_base=True)
             return
 
@@ -57,32 +87,6 @@ class DistractorKid(Kid):
 
         # Gérer les interactions avec les bonbons
         self.handle_candy_interactions(environment)
-
-    def return_to_coloring_zone(self, environment, teacher_position, back_to_base=False):
-        """
-        Retourne à la position initiale tout en maximisant la distance avec la maîtresse
-        ou revient progressivement après avoir trouvé la zone de bonbons vide.
-        """
-        if back_to_base:
-            if self.path_stack:
-                self.x, self.y = self.path_stack.pop()
-                if not self.path_stack:  # Une fois revenu à la position initiale
-                    self.returned_to_base = True
-            return
-
-        farthest_path = self.calculate_longest_path_to_target(
-            self.initial_position, teacher_position, environment
-        )
-        if farthest_path:
-            next_position = farthest_path.pop(0)
-            self.x, self.y = next_position
-
-
-        if (self.x, self.y) == self.initial_position:
-            self.has_candy = False
-            self.score += 1
-
-            self.distracting = True  # Reprendre la distraction après marquer un point
 
     def find_candy(self, environment):
         """
