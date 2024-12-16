@@ -18,6 +18,7 @@ if __name__ == "__main__":
     CHILD3_ICON_PATH = "../assets/WaitAndGo.png"
     CHILD4_ICON_PATH = "../assets/DistractorKid.png"
     POTION_ICON_PATH = "../assets/potion.png"
+    CHILD5_ICON_PATH = "../assets/bfs.png"
 
     game = Game(
         GRID_WIDTH,
@@ -32,8 +33,9 @@ if __name__ == "__main__":
         CHILD2_ICON_PATH,
         CHILD3_ICON_PATH,
         CHILD4_ICON_PATH,
-        potion_icon_path=POTION_ICON_PATH,
-        game_duration=GAME_DURATION
+        GAME_DURATION,  # Passé en positionnel
+        POTION_ICON_PATH,  # potion_icon_path
+        CHILD5_ICON_PATH  # child5_icon_path
 
     )
     game.run()

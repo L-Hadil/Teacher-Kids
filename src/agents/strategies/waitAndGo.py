@@ -18,49 +18,26 @@ class WaitAndGo(Kid):
             return
         self.tick_count = 0  # Réinitialiser le compteur
 
-        # Si l'agent retourne à sa case initiale (avec un bonbon ou après interception)
-        if self.has_candy or (self.returned_to_base and self.path_stack):
-            self.x, self.y = self.path_stack.pop()  # Revenir en arrière via le chemin stocké
-            if not self.path_stack and self.returned_to_base:  # Si arrivé à la position initiale après échec
-                self.returned_to_base = True
-            elif not self.path_stack and self.has_candy:  # Si arrivé à la position initiale avec un bonbon
-                self.has_candy = False
-                self.score += 1
+        # Vérifier la fin de la punition
+        self.check_punishment()
+        if self.is_punished:
             return
 
-        # Si l'agent est déjà revenu à la base après avoir trouvé la zone de bonbons vide
-        if self.returned_to_base:
-            return  # Ne plus sortir de la zone de coloriage
+        # Vérifier la fin de l'invisibilité
+        self.check_invisibility()
 
-        # Attendre que la maîtresse soit loin (distance > 3)
+        # Si l'agent retourne à la base (avec un bonbon ou après interception)
+        if self.has_candy:
+            target_x, target_y = self.initial_position
+        else:
+            target_x, target_y = self.set_target(environment)
+
+        # Éviter la maîtresse si elle est proche
         if abs(self.x - teacher_x) + abs(self.y - teacher_y) <= 3:
+            print(f"{type(self).__name__} is waiting for the teacher to move away.")
             return
 
-        # Déterminer une cible détournée vers la zone de bonbons
-        target_x, target_y = self.set_target(environment)
-
-        # Si l'agent atteint la zone de bonbons mais qu'il n'y en a plus
-        if (self.x, self.y) == (target_x, target_y) and not self.has_candy and environment.candy_count == 0:
-            # Préparer le retour progressif avec chemin inverse
-            self.returned_to_base = True
-            self.path_stack.append((self.x, self.y))  # Ajouter la position actuelle à la pile
-            return
-
-        # Prendre un chemin détourné (augmenter X ou Y pour éviter un chemin direct)
-        if not self.has_candy:
-            if abs(self.x - target_x) > abs(self.y - target_y):
-                if self.x < target_x:
-                    self.path_stack.append((self.x + 1, self.y))
-                else:
-                    self.path_stack.append((self.x - 1, self.y))
-            else:
-                if self.y < target_y:
-                    self.path_stack.append((self.x, self.y + 1))
-                else:
-                    self.path_stack.append((self.x, self.y - 1))
-            self.path_stack.append((self.x, self.y))  # Enregistrer la position actuelle
-
-        # Se déplacer vers la cible détournée
+        # Déplacer directement vers la cible
         if self.x < target_x:
             self.x += 1
         elif self.x > target_x:
@@ -71,5 +48,11 @@ class WaitAndGo(Kid):
         elif self.y > target_y:
             self.y -= 1
 
-        # Vérifier les interactions avec les zones
+        # Si arrivé à la base avec un bonbon, marquer un point
+        if (self.x, self.y) == self.initial_position and self.has_candy:
+            self.has_candy = False
+            self.score += 1
+            print(f"{type(self).__name__} scored! Current score: {self.score}")
+
+        # Gérer les interactions avec les bonbons
         self.handle_candy_interactions(environment)

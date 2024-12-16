@@ -2,6 +2,7 @@ import random
 import pygame
 import logging
 
+from src.agents.strategies.bfs import BFS
 from src.agents.strategies.waitAndGo import WaitAndGo
 from src.agents.teacher import Teacher
 from src.agents.strategies.direct_to_candy import DirectToCandy
@@ -13,14 +14,15 @@ from src.environment import Environment
 class Game:
     def __init__(self, width, height, cell_size, candy_zone, coloring_zone, candy_count, candy_icon_path,
                  teacher_icon_path, child1_icon_path, child2_icon_path, child3_icon_path, child4_icon_path,
-                 game_duration, potion_icon_path):
+                 game_duration, potion_icon_path, child5_icon_path):
+
         """
         Initialise le jeu.
         """
         pygame.init()
 
         self.screen_width = width * cell_size
-        self.screen_height = height * cell_size + 200  # +100 pour la zone des scores
+        self.screen_height = height * cell_size + 300  # +100 pour la zone des scores
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Candy Game Environment")
         self.clock = pygame.time.Clock()
@@ -37,7 +39,9 @@ class Game:
             DirectToCandy(2, 1, cell_size, child1_icon_path),
             LongestPath(2, 2, cell_size, child2_icon_path),
             WaitAndGo(3, 3, cell_size, child3_icon_path),
-            DistractorKid(4, 3, cell_size, child4_icon_path)
+            DistractorKid(4, 3, cell_size, child4_icon_path),
+            BFS(3,2,cell_size,child5_icon_path)
+
         ]
 
         self.teacher = Teacher(2, 3, cell_size, teacher_icon_path, number_of_kids=len(self.children), tick_delay=8)
@@ -151,6 +155,17 @@ class Game:
                     child.x, child.y = child.initial_position
                     child.path_stack.clear()  # Réinitialiser le chemin
 
+    def display_final_scores(self):
+        """
+        Affiche les scores de tous les enfants, le score de la maîtresse, et le nombre de bonbons restants.
+        """
+        print("\n=== Final Scores ===")
+        for child in self.children:
+            print(f"{type(child).__name__}: {child.score} points")
+        print(f"Teacher: {self.teacher.score} points")
+        print(f"Candies Remaining: {self.environment.candy_count}")
+        print("===================")
+
     def run(self):
         """Boucle principale du jeu."""
         self.start_time = pygame.time.get_ticks()  # Temps de départ en millisecondes
@@ -205,7 +220,10 @@ class Game:
 
             self.clock.tick(30)
 
+        self.display_final_scores()
         pygame.quit()
+
+
 
 
 # Configuration du logger
