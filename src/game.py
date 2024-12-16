@@ -45,7 +45,7 @@ class Game:
             LongestPath(4, 1, cell_size, child2_icon_path)
         ]
 
-        self.teacher = Teacher(6, 3, cell_size, teacher_icon_path, number_of_kids=len(self.children), tick_delay=16)
+        self.teacher = Teacher(14, 3, cell_size, teacher_icon_path, number_of_kids=len(self.children), tick_delay=11)
 
         # Contrôle de la boucle principale
         self.running = True  # Initialisation de l'état du jeu

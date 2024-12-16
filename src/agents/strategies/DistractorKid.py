@@ -1,8 +1,6 @@
 import math
 from src.agents.kid import Kid
 from venv import logger
-
-
 class DistractorKid(Kid):
     DISTRACTION_RADIUS = 5
     FAR_DISTANCE_THRESHOLD = 8
@@ -20,40 +18,40 @@ class DistractorKid(Kid):
             return
         self.tick_count = 0
 
-        # Si l'agent a un bonbon, il retourne à sa position initiale
+        # If the agent has a candy, return to its initial position, retracing its steps
         if self.has_candy:
             self.return_to_coloring_zone(environment, teacher_position)
             return
 
-        # Déterminer la distance à la maîtresse
+        # Determine the distance to the teacher
         distance_to_teacher = math.sqrt(
             (self.x - teacher_position[0]) ** 2 + (self.y - teacher_position[1]) ** 2
         )
 
-        # Définir le mode (distraction ou collecte de bonbons)
+        # Define the mode (distraction or candy collection)
         if distance_to_teacher <= self.DISTRACTION_RADIUS:
             self.distracting = True
         elif distance_to_teacher > self.FAR_DISTANCE_THRESHOLD:
             self.distracting = False
 
-        # Comportement basé sur le mode
+        # Behavior based on the mode
         if self.distracting:
             self.current_target = self.calculate_distracting_position(environment, teacher_position)
         else:
             self.current_target = self.find_candy(environment)
 
-        # Déplacement vers la cible
+        # Move towards the target
         if self.current_target:
             self.path_taken.append((self.x, self.y))  # Store the current position in the path
             self.move_towards_target(*self.current_target)
 
-        # Gérer les interactions avec les bonbons
+        # Handle candy interactions
         self.handle_candy_interactions(environment)
 
     def return_to_coloring_zone(self, environment, teacher_position):
         """
-        Retourne à la position initiale tout en maximisant la distance avec la maîtresse.
-        Utilise le chemin suivi au départ pour revenir.
+        Returns to the initial position while maximizing the distance from the teacher.
+        Uses the path taken initially to retrace steps.
         """
         if self.path_taken:  # If there's a recorded path, retrace it
             next_position = self.path_taken.pop()
@@ -64,15 +62,16 @@ class DistractorKid(Kid):
             self.x, self.y = self.initial_position
             logger.info(f"Returning to initial position {self.initial_position}.")
 
+        # Once back at the initial position, drop the candy and score
         if (self.x, self.y) == self.initial_position:
             self.has_candy = False
             self.score += 1
             logger.info(f"DistractorKid scored! Current score: {self.score}")
-            self.distracting = True  # Reprendre la distraction après marquer un point
+            self.distracting = True  # Resuming distraction after scoring a point
 
     def find_candy(self, environment):
         """
-        Trouve la position d'un bonbon disponible dans la zone des bonbons.
+        Finds the position of an available candy in the candy zone.
         """
         for x in range(environment.candy_zone[0], environment.candy_zone[2] + 1):
             for y in range(environment.candy_zone[1], environment.candy_zone[3] + 1):
@@ -82,7 +81,7 @@ class DistractorKid(Kid):
 
     def calculate_distracting_position(self, environment, teacher_position):
         """
-        Calcule une position proche de la maîtresse pour la distraire.
+        Calculates a position near the teacher to distract them.
         """
         offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         for dx, dy in offsets:
@@ -94,7 +93,7 @@ class DistractorKid(Kid):
 
     def move_towards_target(self, target_x, target_y):
         """
-        Déplace l'agent vers la cible donnée.
+        Moves the agent towards the given target.
         """
         if self.x < target_x:
             self.x += 1
@@ -105,4 +104,3 @@ class DistractorKid(Kid):
             self.y += 1
         elif self.y > target_y:
             self.y -= 1
-
