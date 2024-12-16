@@ -114,7 +114,3 @@ Le **Candy Game** est un jeu  où des enfants agents interagissent dans un envir
 ```
 
 ---
-
-
-- **Comportement des enfants et maîtresse** :
-  - Délai de mouvement et stratégies spécifiques dans `kid.py` et `teacher.py`.
