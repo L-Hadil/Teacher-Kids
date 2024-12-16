@@ -2,7 +2,7 @@
 
 ## Description
 
-Le **Candy Game ** est un jeu  où des enfants agents interagissent dans un environnement simulé. Chaque enfant suit une stratégie unique pour collecter des bonbons tout en évitant la maîtresse. Deux versions sont disponibles :
+Le **Candy Game** est un jeu  où des enfants agents interagissent dans un environnement simulé. Chaque enfant suit une stratégie unique pour collecter des bonbons tout en évitant la maîtresse. Deux versions sont disponibles :
 
 1. **Version sans potion magique** : située dans la branche `Malik.2.0`.
 2. **Version avec potion magique(environnement Dynamique )** : située dans la branche `Hadil`.
